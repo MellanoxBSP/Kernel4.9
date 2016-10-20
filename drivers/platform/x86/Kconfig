@@ -1043,6 +1043,7 @@ config MLX_PLATFORM
 config MLX_CPLD_PLATFORM
 	tristate "Mellanox platform hotplug driver support"
 	default n
+	depends on MLX_PLATFORM
 	select HWMON
 	select I2C
 	---help---
