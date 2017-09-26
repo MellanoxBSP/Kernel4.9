@@ -1040,14 +1040,4 @@ config MLX_PLATFORM
 
 	  If you have a Mellanox system, say Y or M here.
 
-config MLX_CPLD_PLATFORM
-	tristate "Mellanox platform hotplug driver support"
-	default n
-	depends on MLX_PLATFORM
-	select HWMON
-	select I2C
-	---help---
-	  This driver handles hot-plug events for the power suppliers, power
-	  cables and fans on the wide range Mellanox IB and Ethernet systems.
-
 endif # X86_PLATFORM_DEVICES
