@@ -114,6 +114,7 @@ struct mlxsw_core {
 	struct mlxsw_resources resources;
 	struct mlxsw_hwmon *hwmon;
 	struct mlxsw_thermal *thermal;
+struct mlxsw_qsfp *qsfp;
 	struct mlxsw_core_port ports[MLXSW_PORT_MAX_PORTS];
 	unsigned long driver_priv[0];
 	/* driver_priv has to be always the last item */
@@ -1135,6 +1136,11 @@ int mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 	if (err)
 		goto err_thermal_init;
 
+	err = mlxsw_qsfp_init(mlxsw_core, mlxsw_bus_info,
+				 &mlxsw_core->qsfp);
+	if (err)
+		goto err_qsfp_init;
+
 	if (mlxsw_driver->init) {
 		err = mlxsw_driver->init(mlxsw_core, mlxsw_bus_info);
 		if (err)
@@ -1150,6 +1156,9 @@ int mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 err_debugfs_init:
 	mlxsw_core->driver->fini(mlxsw_core);
 err_driver_init:
+	mlxsw_qsfp_fini(mlxsw_core->qsfp);
+err_qsfp_init:
+	mlxsw_thermal_fini(mlxsw_core->thermal);
 err_thermal_init:
 err_hwmon_init:
 	devlink_unregister(devlink);
@@ -1177,6 +1186,7 @@ void mlxsw_core_bus_device_unregister(struct mlxsw_core *mlxsw_core)
 	mlxsw_core_debugfs_fini(mlxsw_core);
 	if (mlxsw_core->driver->fini)
 		mlxsw_core->driver->fini(mlxsw_core);
+	mlxsw_qsfp_fini(mlxsw_core->qsfp);
 	mlxsw_thermal_fini(mlxsw_core->thermal);
 	devlink_unregister(devlink);
 	mlxsw_emad_fini(mlxsw_core);

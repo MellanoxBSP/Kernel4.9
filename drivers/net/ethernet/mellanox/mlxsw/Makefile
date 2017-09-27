@@ -2,6 +2,7 @@ obj-$(CONFIG_MLXSW_CORE)	+= mlxsw_core.o
 mlxsw_core-objs			:= core.o
 mlxsw_core-$(CONFIG_MLXSW_CORE_HWMON) += core_hwmon.o
 mlxsw_core-$(CONFIG_MLXSW_CORE_THERMAL) += core_thermal.o
+mlxsw_core-$(CONFIG_MLXSW_CORE_QSFP) += qsfp_sysfs.o
 obj-$(CONFIG_MLXSW_PCI)		+= mlxsw_pci.o
 mlxsw_pci-objs			:= pci.o
 obj-$(CONFIG_MLXSW_I2C)		+= mlxsw_i2c.o

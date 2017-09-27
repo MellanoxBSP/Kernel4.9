@@ -374,4 +374,28 @@ static inline void mlxsw_thermal_fini(struct mlxsw_thermal *thermal)
 
 #endif
 
+struct mlxsw_qsfp;
+
+#ifdef CONFIG_MLXSW_CORE_QSFP
+
+int mlxsw_qsfp_init(struct mlxsw_core *mlxsw_core,
+		    const struct mlxsw_bus_info *mlxsw_bus_info,
+		    struct mlxsw_qsfp **p_qsfp);
+void mlxsw_qsfp_fini(struct mlxsw_qsfp *qsfp);
+
+#else
+
+static inline int mlxsw_qsfp_init(struct mlxsw_core *mlxsw_core,
+				  const struct mlxsw_bus_info *mlxsw_bus_info,
+				  struct mlxsw_qsfp **p_qsfp)
+{
+	return 0;
+}
+
+static inline void mlxsw_qsfp_fini(struct mlxsw_qsfp *qsfp)
+{
+}
+
+#endif
+
 #endif
