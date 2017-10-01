@@ -263,7 +263,6 @@ static void mlxsw_hwmon_attr_add(struct mlxsw_hwmon *mlxsw_hwmon,
 static int mlxsw_hwmon_temp_init(struct mlxsw_hwmon *mlxsw_hwmon)
 {
 	char mtcap_pl[MLXSW_REG_MTCAP_LEN] = {0};
-	char mtmp_pl[MLXSW_REG_MTMP_LEN];
 	u8 sensor_count;
 	int i;
 	int err;
@@ -275,14 +274,6 @@ static int mlxsw_hwmon_temp_init(struct mlxsw_hwmon *mlxsw_hwmon)
 	}
 	sensor_count = mlxsw_reg_mtcap_sensor_count_get(mtcap_pl);
 	for (i = 0; i < sensor_count; i++) {
-		mlxsw_reg_mtmp_pack(mtmp_pl, i, true, true);
-		err = mlxsw_reg_write(mlxsw_hwmon->core,
-				      MLXSW_REG(mtmp), mtmp_pl);
-		if (err) {
-			dev_err(mlxsw_hwmon->bus_info->dev, "Failed to setup temp sensor number %d\n",
-				i);
-			return err;
-		}
 		mlxsw_hwmon_attr_add(mlxsw_hwmon,
 				     MLXSW_HWMON_ATTR_TYPE_TEMP, i, i);
 		mlxsw_hwmon_attr_add(mlxsw_hwmon,
