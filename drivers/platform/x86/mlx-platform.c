@@ -713,6 +713,20 @@ static struct dmi_system_id mlxplat_dmi_table[] __initdata = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "QMB7"),
 		},
 	},
+	{
+		.callback = mlxplat_dmi_qmb7xx_matched,
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "Mellanox Technologies"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "SN37"),
+		},
+	},
+	{
+		.callback = mlxplat_dmi_qmb7xx_matched,
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "Mellanox Technologies"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "SN34"),
+		},
+	},
 	{ }
 };
 
@@ -832,3 +846,5 @@ MODULE_ALIAS("dmi:*:*Mellanox*:MSN21*:");
 MODULE_ALIAS("dmi:*:*Mellanox*MSN274*:");
 MODULE_ALIAS("dmi:*:*Mellanox*MSN201*:");
 MODULE_ALIAS("dmi:*:*Mellanox*QMB7*:");
+MODULE_ALIAS("dmi:*:*Mellanox*SN37*:");
+MODULE_ALIAS("dmi:*:*Mellanox*QM34*:");
