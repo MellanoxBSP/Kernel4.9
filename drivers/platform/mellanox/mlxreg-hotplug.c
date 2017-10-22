@@ -33,19 +33,15 @@
 
 #include <linux/bitops.h>
 #include <linux/device.h>
-#include <linux/gpio.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
-#include <linux/interrupt.h>
 #include <linux/i2c.h>
-#include <linux/io.h>
-#include <linux/leds.h>
+#include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/platform_data/mlxreg.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
-#include <linux/wait.h>
 #include <linux/workqueue.h>
 
 /* Offset of event and mask registers from status register. */
@@ -100,7 +96,7 @@ struct mlxreg_hotplug_priv_data {
 	bool after_probe;
 };
 
-#if defined(CONFIG_OF_DYNAMIC) && !defined(CONFIG_COMPILE_TEST)
+#if defined(CONFIG_OF_DYNAMIC)
 /**
  * struct mlxreg_hotplug_device_en - Open Firmware property for enabling device
  *
@@ -241,8 +237,10 @@ static ssize_t mlxreg_hotplug_attr_show(struct device *dev,
 	return sprintf(buf, "%u\n", regval);
 }
 
-static int
-mlxreg_hotplug_attr_init(struct mlxreg_hotplug_priv_data *priv)
+#define PRIV_ATTR(i) priv->mlxreg_hotplug_attr[i]
+#define PRIV_DEV_ATTR(i) priv->mlxreg_hotplug_dev_attr[i]
+
+static int mlxreg_hotplug_attr_init(struct mlxreg_hotplug_priv_data *priv)
 {
 	struct mlxreg_core_hotplug_platform_data *pdata;
 	struct mlxreg_core_item *item;
@@ -252,40 +250,39 @@ mlxreg_hotplug_attr_init(struct mlxreg_hotplug_priv_data *priv)
 	pdata = dev_get_platdata(&priv->pdev->dev);
 	item = pdata->items;
 
-	for (i = 0; i < pdata->counter; i++)
-		num_attrs += (item + i)->count;
+	/* Go over all kinds of items - psu, pwr, fan. */
+	for (i = 0; i < pdata->counter; i++, item++) {
+		num_attrs += item->count;
+		data = item->data;
+		/* Go over all units within the item. */
+		for (j = 0; j < item->count; j++, data++, id++) {
+			PRIV_ATTR(id) = &PRIV_DEV_ATTR(id).dev_attr.attr;
+			PRIV_ATTR(id)->name = devm_kasprintf(&priv->pdev->dev,
+							     GFP_KERNEL,
+							     data->label);
+
+			if (!PRIV_ATTR(id)->name) {
+				dev_err(priv->dev, "Memory allocation failed for attr %d.\n",
+					id);
+				return -ENOMEM;
+			}
+
+			PRIV_DEV_ATTR(id).dev_attr.attr.name =
+							PRIV_ATTR(id)->name;
+			PRIV_DEV_ATTR(id).dev_attr.attr.mode = 0444;
+			PRIV_DEV_ATTR(id).dev_attr.show =
+						mlxreg_hotplug_attr_show;
+			PRIV_DEV_ATTR(id).nr = i;
+			PRIV_DEV_ATTR(id).index = j;
+			sysfs_attr_init(&PRIV_DEV_ATTR(id).dev_attr.attr);
+		}
+	}
 
 	priv->group.attrs = devm_kzalloc(&priv->pdev->dev, num_attrs *
 					 sizeof(struct attribute *),
 					 GFP_KERNEL);
 	if (!priv->group.attrs)
 		return -ENOMEM;
-
-	for (i = 0; i < pdata->counter; i++, item++) {
-		data = item->data;
-		for (j = 0; j < item->count; j++, data++, id++) {
-			priv->mlxreg_hotplug_attr[id] =
-			&priv->mlxreg_hotplug_dev_attr[id].dev_attr.attr;
-			priv->mlxreg_hotplug_attr[id]->name =
-				devm_kasprintf(&priv->pdev->dev, GFP_KERNEL,
-					       data->label);
-
-			if (!priv->mlxreg_hotplug_attr[id]->name) {
-				dev_err(priv->dev, "Memory allocation failed for attr %d.\n",
-					id);
-				return -ENOMEM;
-			}
-
-			priv->mlxreg_hotplug_dev_attr[id].dev_attr.attr.mode =
-									0444;
-			priv->mlxreg_hotplug_dev_attr[id].dev_attr.show =
-						mlxreg_hotplug_attr_show;
-			priv->mlxreg_hotplug_dev_attr[id].nr = i;
-			priv->mlxreg_hotplug_dev_attr[id].index = j;
-			sysfs_attr_init(
-			&priv->mlxreg_hotplug_dev_attr[id].dev_attr.attr);
-		}
-	}
 
 	priv->group.attrs = priv->mlxreg_hotplug_attr;
 	priv->groups[0] = &priv->group;
@@ -552,6 +549,12 @@ static int mlxreg_hotplug_set_irq(struct mlxreg_hotplug_priv_data *priv)
 	if (ret)
 		goto access_error;
 
+	/* Keep low aggregation initial status as zero and unmask events. */
+	ret = regmap_write(priv->regmap, pdata->cell_low +
+			   MLXREG_HOTPLUG_AGGR_MASK_OFF, pdata->mask_low);
+	if (ret)
+		goto access_error;
+
 	/* Invoke work handler for initializing hot plug devices setting. */
 	mlxreg_hotplug_work_handler(&priv->dwork_irq.work);
 
@@ -578,6 +581,10 @@ static void mlxreg_hotplug_unset_irq(struct mlxreg_hotplug_priv_data *priv)
 	item = pdata->items;
 	disable_irq(priv->irq);
 	cancel_delayed_work_sync(&priv->dwork_irq);
+
+	/* Mask low aggregation event. */
+	regmap_write(priv->regmap, pdata->cell_low +
+		     MLXREG_HOTPLUG_AGGR_MASK_OFF, 0);
 
 	/* Mask aggregation event. */
 	regmap_write(priv->regmap, pdata->cell + MLXREG_HOTPLUG_AGGR_MASK_OFF,
@@ -687,18 +694,9 @@ static int mlxreg_hotplug_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#if defined(CONFIG_OF)
-static const struct of_device_id mlxreg_hotplug_dt_match[] = {
-	{ .compatible = "mellanox,mlxreg-hotplug" },
-	{ },
-};
-MODULE_DEVICE_TABLE(of, mlxreg_hotplug_dt_match);
-#endif
-
 static struct platform_driver mlxreg_hotplug_driver = {
 	.driver = {
-	    .name = "mlxreg-hotplug",
-	    .of_match_table = of_match_ptr(mlxreg_hotplug_dt_match),
+		.name = "mlxreg-hotplug",
 	},
 	.probe = mlxreg_hotplug_probe,
 	.remove = mlxreg_hotplug_remove,

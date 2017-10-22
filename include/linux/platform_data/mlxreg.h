@@ -125,6 +125,8 @@ struct mlxreg_core_led_platform_data {
  * @counter: number of the components with the hotplug capability;
  * @cell: location of top aggregation interrupt register;
  * @mask: top aggregation interrupt common mask;
+ * @cell_low: location of low aggregation interrupt register;
+ * @mask_low: low aggregation interrupt common mask;
  */
 struct mlxreg_core_hotplug_platform_data {
 	struct mlxreg_core_item *items;
@@ -133,6 +135,8 @@ struct mlxreg_core_hotplug_platform_data {
 	int counter;
 	u32 cell;
 	u32 mask;
+	u32 cell_low;
+	u32 mask_low;
 };
 
 #endif /* __LINUX_PLATFORM_DATA_MLXREG_H */

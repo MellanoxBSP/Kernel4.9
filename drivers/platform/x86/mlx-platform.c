@@ -47,15 +47,16 @@
 /* LPC bus IO offsets */
 #define MLXPLAT_CPLD_LPC_I2C_BASE_ADRR		0x2000
 #define MLXPLAT_CPLD_LPC_REG_BASE_ADRR		0x2500
-#define MLXPLAT_CPLD_LPC_REG_LED1_ADRR		0x20
-#define MLXPLAT_CPLD_LPC_REG_LED2_ADRR		0x21
-#define MLXPLAT_CPLD_LPC_REG_LED3_ADRR		0x22
-#define MLXPLAT_CPLD_LPC_REG_LED4_ADRR		0x23
-#define MLXPLAT_CPLD_LPC_REG_LED5_ADRR		0x24
-#define MLXPLAT_CPLD_LPC_REG_AGGR_ADRR		0x3a
-#define MLXPLAT_CPLD_LPC_REG_PSU_ADRR		0x58
-#define MLXPLAT_CPLD_LPC_REG_PWR_ADRR		0x64
-#define MLXPLAT_CPLD_LPC_REG_FAN_ADRR		0x88
+#define MLXPLAT_CPLD_LPC_REG_LED1_OFF		0x20
+#define MLXPLAT_CPLD_LPC_REG_LED2_OFF		0x21
+#define MLXPLAT_CPLD_LPC_REG_LED3_OFF		0x22
+#define MLXPLAT_CPLD_LPC_REG_LED4_OFF		0x23
+#define MLXPLAT_CPLD_LPC_REG_LED5_OFF		0x24
+#define MLXPLAT_CPLD_LPC_REG_AGGR_OFF		0x3a
+#define MLXPLAT_CPLD_LPC_REG_AGGR_LOW_OFF	0x40
+#define MLXPLAT_CPLD_LPC_REG_PSU_OFF		0x58
+#define MLXPLAT_CPLD_LPC_REG_PWR_OFF		0x64
+#define MLXPLAT_CPLD_LPC_REG_FAN_OFF		0x88
 #define MLXPLAT_CPLD_LPC_IO_RANGE		0x100
 #define MLXPLAT_CPLD_LPC_I2C_CH1_OFF		0xdb
 #define MLXPLAT_CPLD_LPC_I2C_CH2_OFF		0xda
@@ -73,6 +74,8 @@
 #define MLXPLAT_CPLD_AGGR_FAN_MASK_DEF	0x40
 #define MLXPLAT_CPLD_AGGR_MASK_DEF	(MLXPLAT_CPLD_AGGR_PSU_MASK_DEF | \
 					 MLXPLAT_CPLD_AGGR_FAN_MASK_DEF)
+#define MLXPLAT_CPLD_AGGR_MASK_NG_DEF	0x04
+#define MLXPLAT_CPLD_LOW_AGGR_MASK_LOW	0xc0
 #define MLXPLAT_CPLD_AGGR_MASK_MSN21XX	0x04
 #define MLXPLAT_CPLD_PSU_MASK		GENMASK(1, 0)
 #define MLXPLAT_CPLD_PWR_MASK		GENMASK(1, 0)
@@ -192,14 +195,14 @@ static struct i2c_board_info mlxplat_mlxcpld_fan[] = {
 static struct mlxreg_core_data mlxplat_mlxcpld_default_psu_items_data[] = {
 	{
 		.label = "psu1",
-		.reg = MLXPLAT_CPLD_LPC_REG_PSU_ADRR,
+		.reg = MLXPLAT_CPLD_LPC_REG_PSU_OFF,
 		.mask = BIT(0),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_psu[0],
 		.hpdev.nr = MLXPLAT_CPLD_PSU_DEFAULT_NR,
 	},
 	{
 		.label = "psu2",
-		.reg = MLXPLAT_CPLD_LPC_REG_PSU_ADRR,
+		.reg = MLXPLAT_CPLD_LPC_REG_PSU_OFF,
 		.mask = BIT(1),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_psu[1],
 		.hpdev.nr = MLXPLAT_CPLD_PSU_DEFAULT_NR,
@@ -209,14 +212,14 @@ static struct mlxreg_core_data mlxplat_mlxcpld_default_psu_items_data[] = {
 static struct mlxreg_core_data mlxplat_mlxcpld_default_pwr_items_data[] = {
 	{
 		.label = "pwr1",
-		.reg = MLXPLAT_CPLD_LPC_REG_PWR_ADRR,
+		.reg = MLXPLAT_CPLD_LPC_REG_PWR_OFF,
 		.mask = BIT(0),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_pwr[0],
 		.hpdev.nr = MLXPLAT_CPLD_PSU_DEFAULT_NR,
 	},
 	{
 		.label = "pwr2",
-		.reg = MLXPLAT_CPLD_LPC_REG_PWR_ADRR,
+		.reg = MLXPLAT_CPLD_LPC_REG_PWR_OFF,
 		.mask = BIT(1),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_pwr[1],
 		.hpdev.nr = MLXPLAT_CPLD_PSU_DEFAULT_NR,
@@ -226,28 +229,28 @@ static struct mlxreg_core_data mlxplat_mlxcpld_default_pwr_items_data[] = {
 static struct mlxreg_core_data mlxplat_mlxcpld_default_fan_items_data[] = {
 	{
 		.label = "fan1",
-		.reg = MLXPLAT_CPLD_LPC_REG_FAN_ADRR,
+		.reg = MLXPLAT_CPLD_LPC_REG_FAN_OFF,
 		.mask = BIT(0),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_fan[0],
 		.hpdev.nr = 11,
 	},
 	{
 		.label = "fan2",
-		.reg = MLXPLAT_CPLD_LPC_REG_FAN_ADRR,
+		.reg = MLXPLAT_CPLD_LPC_REG_FAN_OFF,
 		.mask = BIT(1),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_fan[1],
 		.hpdev.nr = 12,
 	},
 	{
 		.label = "fan3",
-		.reg = MLXPLAT_CPLD_LPC_REG_FAN_ADRR,
+		.reg = MLXPLAT_CPLD_LPC_REG_FAN_OFF,
 		.mask = BIT(2),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_fan[2],
 		.hpdev.nr = 13,
 	},
 	{
 		.label = "fan4",
-		.reg = MLXPLAT_CPLD_LPC_REG_FAN_ADRR,
+		.reg = MLXPLAT_CPLD_LPC_REG_FAN_OFF,
 		.mask = BIT(3),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_fan[3],
 		.hpdev.nr = 14,
@@ -258,7 +261,7 @@ static struct mlxreg_core_item mlxplat_mlxcpld_default_items[] = {
 	{
 		.data = mlxplat_mlxcpld_default_psu_items_data,
 		.aggr_mask = MLXPLAT_CPLD_AGGR_PSU_MASK_DEF,
-		.reg = MLXPLAT_CPLD_LPC_REG_PSU_ADRR,
+		.reg = MLXPLAT_CPLD_LPC_REG_PSU_OFF,
 		.mask = MLXPLAT_CPLD_PSU_MASK,
 		.count = ARRAY_SIZE(mlxplat_mlxcpld_psu),
 		.inversed = 1,
@@ -267,7 +270,7 @@ static struct mlxreg_core_item mlxplat_mlxcpld_default_items[] = {
 	{
 		.data = mlxplat_mlxcpld_default_pwr_items_data,
 		.aggr_mask = MLXPLAT_CPLD_AGGR_PWR_MASK_DEF,
-		.reg = MLXPLAT_CPLD_LPC_REG_PWR_ADRR,
+		.reg = MLXPLAT_CPLD_LPC_REG_PWR_OFF,
 		.mask = MLXPLAT_CPLD_PWR_MASK,
 		.count = ARRAY_SIZE(mlxplat_mlxcpld_pwr),
 		.inversed = 0,
@@ -276,7 +279,7 @@ static struct mlxreg_core_item mlxplat_mlxcpld_default_items[] = {
 	{
 		.data = mlxplat_mlxcpld_default_fan_items_data,
 		.aggr_mask = MLXPLAT_CPLD_AGGR_FAN_MASK_DEF,
-		.reg = MLXPLAT_CPLD_LPC_REG_FAN_ADRR,
+		.reg = MLXPLAT_CPLD_LPC_REG_FAN_OFF,
 		.mask = MLXPLAT_CPLD_FAN_MASK,
 		.count = ARRAY_SIZE(mlxplat_mlxcpld_fan),
 		.inversed = 1,
@@ -288,18 +291,39 @@ static
 struct mlxreg_core_hotplug_platform_data mlxplat_mlxcpld_default_data = {
 	.items = mlxplat_mlxcpld_default_items,
 	.counter = ARRAY_SIZE(mlxplat_mlxcpld_default_items),
-	.cell = MLXPLAT_CPLD_LPC_REG_AGGR_ADRR,
+	.cell = MLXPLAT_CPLD_LPC_REG_AGGR_OFF,
 	.mask = MLXPLAT_CPLD_AGGR_MASK_DEF,
 };
 
 /* Platform hotplug MSN21xx system family data */
+static struct i2c_board_info mlxplat_mlxcpld_msn21xx_pwr = {
+	I2C_BOARD_INFO("holder", 0x50),
+};
+
+static struct mlxreg_core_data mlxplat_mlxcpld_msn21xx_pwr_items_data[] = {
+	{
+		.label = "pwr1",
+		.reg = MLXPLAT_CPLD_LPC_REG_PWR_OFF,
+		.mask = BIT(0),
+		.hpdev.brdinfo = &mlxplat_mlxcpld_msn21xx_pwr,
+		.hpdev.nr = MLXPLAT_CPLD_PSU_DEFAULT_NR,
+	},
+	{
+		.label = "pwr2",
+		.reg = MLXPLAT_CPLD_LPC_REG_PWR_OFF,
+		.mask = BIT(1),
+		.hpdev.brdinfo = &mlxplat_mlxcpld_msn21xx_pwr,
+		.hpdev.nr = MLXPLAT_CPLD_PSU_DEFAULT_NR,
+	},
+};
+
 static struct mlxreg_core_item mlxplat_mlxcpld_msn21xx_items[] = {
 	{
-		.data = mlxplat_mlxcpld_default_pwr_items_data,
+		.data = mlxplat_mlxcpld_msn21xx_pwr_items_data,
 		.aggr_mask = MLXPLAT_CPLD_AGGR_PWR_MASK_DEF,
-		.reg = MLXPLAT_CPLD_LPC_REG_PWR_ADRR,
+		.reg = MLXPLAT_CPLD_LPC_REG_PWR_OFF,
 		.mask = MLXPLAT_CPLD_PWR_MASK,
-		.count = ARRAY_SIZE(mlxplat_mlxcpld_pwr),
+		.count = ARRAY_SIZE(mlxplat_mlxcpld_msn21xx_pwr_items_data),
 		.inversed = 0,
 		.health = false,
 	},
@@ -309,70 +333,307 @@ static
 struct mlxreg_core_hotplug_platform_data mlxplat_mlxcpld_msn21xx_data = {
 	.items = mlxplat_mlxcpld_msn21xx_items,
 	.counter = ARRAY_SIZE(mlxplat_mlxcpld_msn21xx_items),
-	.cell = MLXPLAT_CPLD_LPC_REG_AGGR_ADRR,
+	.cell = MLXPLAT_CPLD_LPC_REG_AGGR_OFF,
 	.mask = MLXPLAT_CPLD_AGGR_MASK_DEF,
+	.cell_low = MLXPLAT_CPLD_LPC_REG_AGGR_LOW_OFF,
+	.mask_low = MLXPLAT_CPLD_LOW_AGGR_MASK_LOW,
+};
+
+/* Platform hotplug MSN201x system family data */
+static struct mlxreg_core_data mlxplat_mlxcpld_msn201x_pwr_items_data[] = {
+	{
+		.label = "pwr1",
+		.reg = MLXPLAT_CPLD_LPC_REG_PWR_OFF,
+		.mask = BIT(0),
+		.hpdev.brdinfo = &mlxplat_mlxcpld_msn21xx_pwr,
+		.hpdev.nr = MLXPLAT_CPLD_PSU_MSNXXXX_NR,
+	},
+	{
+		.label = "pwr2",
+		.reg = MLXPLAT_CPLD_LPC_REG_PWR_OFF,
+		.mask = BIT(1),
+		.hpdev.brdinfo = &mlxplat_mlxcpld_msn21xx_pwr,
+		.hpdev.nr = MLXPLAT_CPLD_PSU_MSNXXXX_NR,
+	},
+};
+
+static struct mlxreg_core_item mlxplat_mlxcpld_msn201x_items[] = {
+	{
+		.data = mlxplat_mlxcpld_msn201x_pwr_items_data,
+		.aggr_mask = MLXPLAT_CPLD_AGGR_PWR_MASK_DEF,
+		.reg = MLXPLAT_CPLD_LPC_REG_PWR_OFF,
+		.mask = MLXPLAT_CPLD_PWR_MASK,
+		.count = ARRAY_SIZE(mlxplat_mlxcpld_msn201x_pwr_items_data),
+		.inversed = 0,
+		.health = false,
+	},
+};
+
+static
+struct mlxreg_core_hotplug_platform_data mlxplat_mlxcpld_msn201x_data = {
+	.items = mlxplat_mlxcpld_msn21xx_items,
+	.counter = ARRAY_SIZE(mlxplat_mlxcpld_msn201x_items),
+	.cell = MLXPLAT_CPLD_LPC_REG_AGGR_OFF,
+	.mask = MLXPLAT_CPLD_AGGR_MASK_DEF,
+	.cell_low = MLXPLAT_CPLD_LPC_REG_AGGR_LOW_OFF,
+	.mask_low = MLXPLAT_CPLD_LOW_AGGR_MASK_LOW,
+};
+
+/* Platform hotplug next generation system family data */
+static struct i2c_board_info mlxplat_mlxcpld_ng_fan = {
+	I2C_BOARD_INFO("holder", 0x50),
+};
+
+static struct mlxreg_core_data mlxplat_mlxcpld_default_ng_psu_items_data[] = {
+	{
+		.label = "psu1",
+		.reg = MLXPLAT_CPLD_LPC_REG_PSU_OFF,
+		.mask = BIT(0),
+		.hpdev.brdinfo = &mlxplat_mlxcpld_psu[0],
+		.hpdev.nr = MLXPLAT_CPLD_PSU_MSNXXXX_NR,
+	},
+	{
+		.label = "psu2",
+		.reg = MLXPLAT_CPLD_LPC_REG_PSU_OFF,
+		.mask = BIT(1),
+		.hpdev.brdinfo = &mlxplat_mlxcpld_psu[1],
+		.hpdev.nr = MLXPLAT_CPLD_PSU_MSNXXXX_NR,
+	},
+};
+
+static struct mlxreg_core_data mlxplat_mlxcpld_default_ng_pwr_items_data[] = {
+	{
+		.label = "pwr1",
+		.reg = MLXPLAT_CPLD_LPC_REG_PWR_OFF,
+		.mask = BIT(0),
+		.hpdev.brdinfo = &mlxplat_mlxcpld_pwr[0],
+		.hpdev.nr = MLXPLAT_CPLD_PSU_MSNXXXX_NR,
+	},
+	{
+		.label = "pwr2",
+		.reg = MLXPLAT_CPLD_LPC_REG_PWR_OFF,
+		.mask = BIT(1),
+		.hpdev.brdinfo = &mlxplat_mlxcpld_pwr[1],
+		.hpdev.nr = MLXPLAT_CPLD_PSU_MSNXXXX_NR,
+	},
+};
+
+static struct mlxreg_core_data mlxplat_mlxcpld_default_ng_fan_items_data[] = {
+	{
+		.label = "fan1",
+		.reg = MLXPLAT_CPLD_LPC_REG_FAN_OFF,
+		.mask = BIT(0),
+		.hpdev.brdinfo = &mlxplat_mlxcpld_ng_fan,
+		.hpdev.nr = 11,
+	},
+	{
+		.label = "fan2",
+		.reg = MLXPLAT_CPLD_LPC_REG_FAN_OFF,
+		.mask = BIT(1),
+		.hpdev.brdinfo = &mlxplat_mlxcpld_ng_fan,
+		.hpdev.nr = 12,
+	},
+	{
+		.label = "fan3",
+		.reg = MLXPLAT_CPLD_LPC_REG_FAN_OFF,
+		.mask = BIT(2),
+		.hpdev.brdinfo = &mlxplat_mlxcpld_ng_fan,
+		.hpdev.nr = 13,
+	},
+	{
+		.label = "fan4",
+		.reg = MLXPLAT_CPLD_LPC_REG_FAN_OFF,
+		.mask = BIT(3),
+		.hpdev.brdinfo = &mlxplat_mlxcpld_ng_fan,
+		.hpdev.nr = 14,
+	},
+	{
+		.label = "fan5",
+		.reg = MLXPLAT_CPLD_LPC_REG_FAN_OFF,
+		.mask = BIT(3),
+		.hpdev.brdinfo = &mlxplat_mlxcpld_ng_fan,
+		.hpdev.nr = 15,
+	},
+	{
+		.label = "fan6",
+		.reg = MLXPLAT_CPLD_LPC_REG_FAN_OFF,
+		.mask = BIT(3),
+		.hpdev.brdinfo = &mlxplat_mlxcpld_ng_fan,
+		.hpdev.nr = 16,
+	},
+};
+
+static struct mlxreg_core_item mlxplat_mlxcpld_default_ng_items[] = {
+	{
+		.data = mlxplat_mlxcpld_default_ng_psu_items_data,
+		.aggr_mask = MLXPLAT_CPLD_AGGR_MASK_NG_DEF,
+		.reg = MLXPLAT_CPLD_LPC_REG_PSU_OFF,
+		.mask = MLXPLAT_CPLD_PSU_MASK,
+		.count = ARRAY_SIZE(mlxplat_mlxcpld_psu),
+		.inversed = 1,
+		.health = false,
+	},
+	{
+		.data = mlxplat_mlxcpld_default_ng_pwr_items_data,
+		.aggr_mask = MLXPLAT_CPLD_AGGR_MASK_NG_DEF,
+		.reg = MLXPLAT_CPLD_LPC_REG_PWR_OFF,
+		.mask = MLXPLAT_CPLD_PWR_MASK,
+		.count = ARRAY_SIZE(mlxplat_mlxcpld_pwr),
+		.inversed = 0,
+		.health = false,
+	},
+	{
+		.data = mlxplat_mlxcpld_default_ng_fan_items_data,
+		.aggr_mask = MLXPLAT_CPLD_AGGR_MASK_NG_DEF,
+		.reg = MLXPLAT_CPLD_LPC_REG_FAN_OFF,
+		.mask = MLXPLAT_CPLD_FAN_MASK,
+		.count = ARRAY_SIZE(mlxplat_mlxcpld_default_ng_fan_items_data),
+		.inversed = 1,
+		.health = false,
+	},
+};
+
+static
+struct mlxreg_core_hotplug_platform_data mlxplat_mlxcpld_default_ng_data = {
+	.items = mlxplat_mlxcpld_default_ng_items,
+	.counter = ARRAY_SIZE(mlxplat_mlxcpld_default_ng_items),
+	.cell = MLXPLAT_CPLD_LPC_REG_AGGR_OFF,
+	.mask = MLXPLAT_CPLD_AGGR_MASK_NG_DEF,
+	.cell_low = MLXPLAT_CPLD_LPC_REG_AGGR_LOW_OFF,
+	.mask_low = MLXPLAT_CPLD_LOW_AGGR_MASK_LOW,
+};
+
+static struct mlxreg_core_data mlxplat_mlxcpld_msn274x_fan_items_data[] = {
+	{
+		.label = "fan1",
+		.reg = MLXPLAT_CPLD_LPC_REG_FAN_OFF,
+		.mask = BIT(0),
+		.hpdev.brdinfo = &mlxplat_mlxcpld_ng_fan,
+		.hpdev.nr = 11,
+	},
+	{
+		.label = "fan2",
+		.reg = MLXPLAT_CPLD_LPC_REG_FAN_OFF,
+		.mask = BIT(1),
+		.hpdev.brdinfo = &mlxplat_mlxcpld_ng_fan,
+		.hpdev.nr = 12,
+	},
+	{
+		.label = "fan3",
+		.reg = MLXPLAT_CPLD_LPC_REG_FAN_OFF,
+		.mask = BIT(2),
+		.hpdev.brdinfo = &mlxplat_mlxcpld_ng_fan,
+		.hpdev.nr = 13,
+	},
+	{
+		.label = "fan4",
+		.reg = MLXPLAT_CPLD_LPC_REG_FAN_OFF,
+		.mask = BIT(3),
+		.hpdev.brdinfo = &mlxplat_mlxcpld_ng_fan,
+		.hpdev.nr = 14,
+	},
+};
+
+static struct mlxreg_core_item mlxplat_mlxcpld_msn274x_items[] = {
+	{
+		.data = mlxplat_mlxcpld_default_ng_psu_items_data,
+		.aggr_mask = MLXPLAT_CPLD_AGGR_MASK_NG_DEF,
+		.reg = MLXPLAT_CPLD_LPC_REG_PSU_OFF,
+		.mask = MLXPLAT_CPLD_PSU_MASK,
+		.count = ARRAY_SIZE(mlxplat_mlxcpld_psu),
+		.inversed = 1,
+		.health = false,
+	},
+	{
+		.data = mlxplat_mlxcpld_default_ng_pwr_items_data,
+		.aggr_mask = MLXPLAT_CPLD_AGGR_MASK_NG_DEF,
+		.reg = MLXPLAT_CPLD_LPC_REG_PWR_OFF,
+		.mask = MLXPLAT_CPLD_PWR_MASK,
+		.count = ARRAY_SIZE(mlxplat_mlxcpld_pwr),
+		.inversed = 0,
+		.health = false,
+	},
+	{
+		.data = mlxplat_mlxcpld_msn274x_fan_items_data,
+		.aggr_mask = MLXPLAT_CPLD_AGGR_MASK_NG_DEF,
+		.reg = MLXPLAT_CPLD_LPC_REG_FAN_OFF,
+		.mask = MLXPLAT_CPLD_FAN_MASK,
+		.count = ARRAY_SIZE(mlxplat_mlxcpld_msn274x_fan_items_data),
+		.inversed = 1,
+		.health = false,
+	},
+};
+
+static
+struct mlxreg_core_hotplug_platform_data mlxplat_mlxcpld_msn274x_data = {
+	.items = mlxplat_mlxcpld_msn274x_items,
+	.counter = ARRAY_SIZE(mlxplat_mlxcpld_default_ng_items),
+	.cell = MLXPLAT_CPLD_LPC_REG_AGGR_OFF,
+	.mask = MLXPLAT_CPLD_AGGR_MASK_NG_DEF,
+	.cell_low = MLXPLAT_CPLD_LPC_REG_AGGR_LOW_OFF,
+	.mask_low = MLXPLAT_CPLD_LOW_AGGR_MASK_LOW,
 };
 
 /* Platform led default data */
 static struct mlxreg_core_data mlxplat_mlxcpld_default_led_data[] = {
 	{
 		.label = "status:green",
-		.reg = MLXPLAT_CPLD_LPC_REG_LED1_ADRR,
+		.reg = MLXPLAT_CPLD_LPC_REG_LED1_OFF,
 		.mask = MLXPLAT_CPLD_LED_LO_NIBBLE_MASK,
 	},
 	{
 		.label = "status:red",
-		.reg = MLXPLAT_CPLD_LPC_REG_LED1_ADRR,
+		.reg = MLXPLAT_CPLD_LPC_REG_LED1_OFF,
 		.mask = MLXPLAT_CPLD_LED_LO_NIBBLE_MASK
 	},
 	{
 		.label = "psu:green",
-		.reg = MLXPLAT_CPLD_LPC_REG_LED1_ADRR,
+		.reg = MLXPLAT_CPLD_LPC_REG_LED1_OFF,
 		.mask = MLXPLAT_CPLD_LED_LO_NIBBLE_MASK,
 	},
 	{
 		.label = "psu:red",
-		.reg = MLXPLAT_CPLD_LPC_REG_LED1_ADRR,
+		.reg = MLXPLAT_CPLD_LPC_REG_LED1_OFF,
 		.mask = MLXPLAT_CPLD_LED_LO_NIBBLE_MASK,
 	},
 	{
 		.label = "fan1:green",
-		.reg = MLXPLAT_CPLD_LPC_REG_LED2_ADRR,
+		.reg = MLXPLAT_CPLD_LPC_REG_LED2_OFF,
 		.mask = MLXPLAT_CPLD_LED_LO_NIBBLE_MASK,
 	},
 	{
 		.label = "fan1:red",
-		.reg = MLXPLAT_CPLD_LPC_REG_LED2_ADRR,
+		.reg = MLXPLAT_CPLD_LPC_REG_LED2_OFF,
 		.mask = MLXPLAT_CPLD_LED_LO_NIBBLE_MASK,
 	},
 	{
 		.label = "fan2:green",
-		.reg = MLXPLAT_CPLD_LPC_REG_LED2_ADRR,
+		.reg = MLXPLAT_CPLD_LPC_REG_LED2_OFF,
 		.mask = MLXPLAT_CPLD_LED_HI_NIBBLE_MASK,
 	},
 	{
 		.label = "fan2:red",
-		.reg = MLXPLAT_CPLD_LPC_REG_LED2_ADRR,
+		.reg = MLXPLAT_CPLD_LPC_REG_LED2_OFF,
 		.mask = MLXPLAT_CPLD_LED_HI_NIBBLE_MASK,
 	},
 	{
 		.label = "fan3:green",
-		.reg = MLXPLAT_CPLD_LPC_REG_LED3_ADRR,
+		.reg = MLXPLAT_CPLD_LPC_REG_LED3_OFF,
 		.mask = MLXPLAT_CPLD_LED_LO_NIBBLE_MASK,
 	},
 	{
 		.label = "fan3:red",
-		.reg = MLXPLAT_CPLD_LPC_REG_LED3_ADRR,
+		.reg = MLXPLAT_CPLD_LPC_REG_LED3_OFF,
 		.mask = MLXPLAT_CPLD_LED_LO_NIBBLE_MASK,
 	},
 	{
 		.label = "fan4:green",
-		.reg = MLXPLAT_CPLD_LPC_REG_LED3_ADRR,
+		.reg = MLXPLAT_CPLD_LPC_REG_LED3_OFF,
 		.mask = MLXPLAT_CPLD_LED_HI_NIBBLE_MASK,
 	},
 	{
 		.label = "fan4:red",
-		.reg = MLXPLAT_CPLD_LPC_REG_LED3_ADRR,
+		.reg = MLXPLAT_CPLD_LPC_REG_LED3_OFF,
 		.mask = MLXPLAT_CPLD_LED_HI_NIBBLE_MASK,
 	},
 };
@@ -386,47 +647,47 @@ static struct mlxreg_core_led_platform_data mlxplat_default_led_data = {
 static struct mlxreg_core_data mlxplat_mlxcpld_msn21xx_led_data[] = {
 	{
 		.label = "status:green",
-		.reg = MLXPLAT_CPLD_LPC_REG_LED1_ADRR,
+		.reg = MLXPLAT_CPLD_LPC_REG_LED1_OFF,
 		.mask = MLXPLAT_CPLD_LED_HI_NIBBLE_MASK,
 	},
 	{
 		.label = "status:red",
-		.reg = MLXPLAT_CPLD_LPC_REG_LED1_ADRR,
+		.reg = MLXPLAT_CPLD_LPC_REG_LED1_OFF,
 		.mask = MLXPLAT_CPLD_LED_HI_NIBBLE_MASK
 	},
 	{
 		.label = "fan:green",
-		.reg = MLXPLAT_CPLD_LPC_REG_LED2_ADRR,
+		.reg = MLXPLAT_CPLD_LPC_REG_LED2_OFF,
 		.mask = MLXPLAT_CPLD_LED_HI_NIBBLE_MASK,
 	},
 	{
 		.label = "fan:red",
-		.reg = MLXPLAT_CPLD_LPC_REG_LED2_ADRR,
+		.reg = MLXPLAT_CPLD_LPC_REG_LED2_OFF,
 		.mask = MLXPLAT_CPLD_LED_HI_NIBBLE_MASK,
 	},
 	{
 		.label = "psu1:green",
-		.reg = MLXPLAT_CPLD_LPC_REG_LED4_ADRR,
+		.reg = MLXPLAT_CPLD_LPC_REG_LED4_OFF,
 		.mask = MLXPLAT_CPLD_LED_HI_NIBBLE_MASK,
 	},
 	{
 		.label = "psu1:red",
-		.reg = MLXPLAT_CPLD_LPC_REG_LED4_ADRR,
+		.reg = MLXPLAT_CPLD_LPC_REG_LED4_OFF,
 		.mask = MLXPLAT_CPLD_LED_HI_NIBBLE_MASK,
 	},
 	{
 		.label = "psu2:green",
-		.reg = MLXPLAT_CPLD_LPC_REG_LED4_ADRR,
+		.reg = MLXPLAT_CPLD_LPC_REG_LED4_OFF,
 		.mask = MLXPLAT_CPLD_LED_LO_NIBBLE_MASK,
 	},
 	{
 		.label = "psu2:red",
-		.reg = MLXPLAT_CPLD_LPC_REG_LED4_ADRR,
+		.reg = MLXPLAT_CPLD_LPC_REG_LED4_OFF,
 		.mask = MLXPLAT_CPLD_LED_LO_NIBBLE_MASK,
 	},
 	{
 		.label = "uid:blue",
-		.reg = MLXPLAT_CPLD_LPC_REG_LED5_ADRR,
+		.reg = MLXPLAT_CPLD_LPC_REG_LED5_OFF,
 		.mask = MLXPLAT_CPLD_LED_HI_NIBBLE_MASK,
 	},
 };
@@ -440,82 +701,82 @@ static struct mlxreg_core_led_platform_data mlxplat_msn21xx_led_data = {
 static struct mlxreg_core_data mlxplat_mlxcpld_default_ng_led_data[] = {
 	{
 		.label = "status:green",
-		.reg = MLXPLAT_CPLD_LPC_REG_LED1_ADRR,
+		.reg = MLXPLAT_CPLD_LPC_REG_LED1_OFF,
 		.mask = MLXPLAT_CPLD_LED_LO_NIBBLE_MASK,
 	},
 	{
 		.label = "status:red",
-		.reg = MLXPLAT_CPLD_LPC_REG_LED1_ADRR,
+		.reg = MLXPLAT_CPLD_LPC_REG_LED1_OFF,
 		.mask = MLXPLAT_CPLD_LED_LO_NIBBLE_MASK
 	},
 	{
 		.label = "psu:green",
-		.reg = MLXPLAT_CPLD_LPC_REG_LED1_ADRR,
+		.reg = MLXPLAT_CPLD_LPC_REG_LED1_OFF,
 		.mask = MLXPLAT_CPLD_LED_LO_NIBBLE_MASK,
 	},
 	{
 		.label = "psu:red",
-		.reg = MLXPLAT_CPLD_LPC_REG_LED1_ADRR,
+		.reg = MLXPLAT_CPLD_LPC_REG_LED1_OFF,
 		.mask = MLXPLAT_CPLD_LED_LO_NIBBLE_MASK,
 	},
 	{
 		.label = "fan1:green",
-		.reg = MLXPLAT_CPLD_LPC_REG_LED2_ADRR,
+		.reg = MLXPLAT_CPLD_LPC_REG_LED2_OFF,
 		.mask = MLXPLAT_CPLD_LED_LO_NIBBLE_MASK,
 	},
 	{
 		.label = "fan1:red",
-		.reg = MLXPLAT_CPLD_LPC_REG_LED2_ADRR,
+		.reg = MLXPLAT_CPLD_LPC_REG_LED2_OFF,
 		.mask = MLXPLAT_CPLD_LED_LO_NIBBLE_MASK,
 	},
 	{
 		.label = "fan2:green",
-		.reg = MLXPLAT_CPLD_LPC_REG_LED2_ADRR,
+		.reg = MLXPLAT_CPLD_LPC_REG_LED2_OFF,
 		.mask = MLXPLAT_CPLD_LED_HI_NIBBLE_MASK,
 	},
 	{
 		.label = "fan2:red",
-		.reg = MLXPLAT_CPLD_LPC_REG_LED2_ADRR,
+		.reg = MLXPLAT_CPLD_LPC_REG_LED2_OFF,
 		.mask = MLXPLAT_CPLD_LED_HI_NIBBLE_MASK,
 	},
 	{
 		.label = "fan3:green",
-		.reg = MLXPLAT_CPLD_LPC_REG_LED3_ADRR,
+		.reg = MLXPLAT_CPLD_LPC_REG_LED3_OFF,
 		.mask = MLXPLAT_CPLD_LED_LO_NIBBLE_MASK,
 	},
 	{
 		.label = "fan3:red",
-		.reg = MLXPLAT_CPLD_LPC_REG_LED3_ADRR,
+		.reg = MLXPLAT_CPLD_LPC_REG_LED3_OFF,
 		.mask = MLXPLAT_CPLD_LED_LO_NIBBLE_MASK,
 	},
 	{
 		.label = "fan4:green",
-		.reg = MLXPLAT_CPLD_LPC_REG_LED3_ADRR,
+		.reg = MLXPLAT_CPLD_LPC_REG_LED3_OFF,
 		.mask = MLXPLAT_CPLD_LED_HI_NIBBLE_MASK,
 	},
 	{
 		.label = "fan4:red",
-		.reg = MLXPLAT_CPLD_LPC_REG_LED3_ADRR,
+		.reg = MLXPLAT_CPLD_LPC_REG_LED3_OFF,
 		.mask = MLXPLAT_CPLD_LED_HI_NIBBLE_MASK,
 	},
 	{
 		.label = "fan5:green",
-		.reg = MLXPLAT_CPLD_LPC_REG_LED4_ADRR,
+		.reg = MLXPLAT_CPLD_LPC_REG_LED4_OFF,
 		.mask = MLXPLAT_CPLD_LED_LO_NIBBLE_MASK,
 	},
 	{
 		.label = "fan5:red",
-		.reg = MLXPLAT_CPLD_LPC_REG_LED4_ADRR,
+		.reg = MLXPLAT_CPLD_LPC_REG_LED4_OFF,
 		.mask = MLXPLAT_CPLD_LED_LO_NIBBLE_MASK,
 	},
 	{
 		.label = "fan6:green",
-		.reg = MLXPLAT_CPLD_LPC_REG_LED5_ADRR,
+		.reg = MLXPLAT_CPLD_LPC_REG_LED5_OFF,
 		.mask = MLXPLAT_CPLD_LED_HI_NIBBLE_MASK,
 	},
 	{
 		.label = "fan6:red",
-		.reg = MLXPLAT_CPLD_LPC_REG_LED5_ADRR,
+		.reg = MLXPLAT_CPLD_LPC_REG_LED5_OFF,
 		.mask = MLXPLAT_CPLD_LED_HI_NIBBLE_MASK,
 	},
 };
@@ -587,10 +848,6 @@ static int __init mlxplat_dmi_msn21xx_matched(const struct dmi_system_id *dmi)
 
 static int __init mlxplat_dmi_msn274x_matched(const struct dmi_system_id *dmi)
 {
-	struct mlxreg_core_data *data_psu =
-					mlxplat_mlxcpld_default_psu_items_data;
-	struct mlxreg_core_data *data_pwr =
-					mlxplat_mlxcpld_default_pwr_items_data;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(mlxplat_mux_data); i++) {
@@ -598,24 +855,14 @@ static int __init mlxplat_dmi_msn274x_matched(const struct dmi_system_id *dmi)
 		mlxplat_mux_data[i].n_values =
 				ARRAY_SIZE(mlxplat_msn21xx_channels);
 	}
-	for (i = 0; i < ARRAY_SIZE(mlxplat_mlxcpld_default_psu_items_data);
-	     i++, data_psu++)
-		data_psu->hpdev.nr = MLXPLAT_CPLD_PSU_MSNXXXX_NR;
-	for (i = 0; i < ARRAY_SIZE(mlxplat_mlxcpld_default_pwr_items_data);
-	     i++, data_pwr++)
-		data_pwr->hpdev.nr = MLXPLAT_CPLD_PSU_MSNXXXX_NR;
-	mlxplat_hotplug = &mlxplat_mlxcpld_default_data;
-	mlxplat_led = &mlxplat_default_ng_led_data;
+	mlxplat_hotplug = &mlxplat_mlxcpld_msn274x_data;
+	mlxplat_led = &mlxplat_default_led_data;
 
 	return 1;
 };
 
 static int __init mlxplat_dmi_qmb7xx_matched(const struct dmi_system_id *dmi)
 {
-	struct mlxreg_core_data *data_psu =
-					mlxplat_mlxcpld_default_psu_items_data;
-	struct mlxreg_core_data *data_pwr =
-					mlxplat_mlxcpld_default_pwr_items_data;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(mlxplat_mux_data); i++) {
@@ -623,14 +870,7 @@ static int __init mlxplat_dmi_qmb7xx_matched(const struct dmi_system_id *dmi)
 		mlxplat_mux_data[i].n_values =
 				ARRAY_SIZE(mlxplat_msn21xx_channels);
 	}
-	mlxplat_mlxcpld_default_items[2].mask = MLXPLAT_CPLD_FAN_NG_MASK;
-	for (i = 0; i < ARRAY_SIZE(mlxplat_mlxcpld_default_psu_items_data);
-	     i++, data_psu++)
-		data_psu->hpdev.nr = MLXPLAT_CPLD_PSU_MSNXXXX_NR;
-	for (i = 0; i < ARRAY_SIZE(mlxplat_mlxcpld_default_pwr_items_data);
-	     i++, data_pwr++)
-		data_pwr->hpdev.nr = MLXPLAT_CPLD_PSU_MSNXXXX_NR;
-	mlxplat_hotplug = &mlxplat_mlxcpld_default_data;
+	mlxplat_hotplug = &mlxplat_mlxcpld_default_ng_data;
 	mlxplat_led = &mlxplat_default_ng_led_data;
 
 	return 1;
@@ -638,8 +878,6 @@ static int __init mlxplat_dmi_qmb7xx_matched(const struct dmi_system_id *dmi)
 
 static int __init mlxplat_dmi_msn201x_matched(const struct dmi_system_id *dmi)
 {
-	struct mlxreg_core_data *data_pwr =
-					mlxplat_mlxcpld_default_pwr_items_data;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(mlxplat_mux_data); i++) {
@@ -647,16 +885,20 @@ static int __init mlxplat_dmi_msn201x_matched(const struct dmi_system_id *dmi)
 		mlxplat_mux_data[i].n_values =
 				ARRAY_SIZE(mlxplat_msn21xx_channels);
 	}
-	for (i = 0; i < ARRAY_SIZE(mlxplat_mlxcpld_default_pwr_items_data);
-	     i++, data_pwr++)
-		data_pwr->hpdev.nr = MLXPLAT_CPLD_PSU_DEFAULT_NR;
-	mlxplat_hotplug = &mlxplat_mlxcpld_msn21xx_data;
+	mlxplat_hotplug = &mlxplat_mlxcpld_msn201x_data;
 	mlxplat_led = &mlxplat_msn21xx_led_data;
 
 	return 1;
 };
 
 static struct dmi_system_id mlxplat_dmi_table[] __initdata = {
+	{
+		.callback = mlxplat_dmi_msn274x_matched,
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "Mellanox Technologies"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "MSN274"),
+		},
+	},
 	{
 		.callback = mlxplat_dmi_default_matched,
 		.matches = {
@@ -690,13 +932,6 @@ static struct dmi_system_id mlxplat_dmi_table[] __initdata = {
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Mellanox Technologies"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "MSN21"),
-		},
-	},
-	{
-		.callback = mlxplat_dmi_msn274x_matched,
-		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "Mellanox Technologies"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "MSN274"),
 		},
 	},
 	{
