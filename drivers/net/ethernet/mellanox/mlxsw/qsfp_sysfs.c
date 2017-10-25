@@ -41,7 +41,7 @@
 #include "core.h"
 
 #define MLXSW_QSFP_I2C_ADDR		0x50
-#define MLXSW_QSFP_PAGE_NUM		4
+#define MLXSW_QSFP_PAGE_NUM		5
 #define MLXSW_QSFP_PAGE_SIZE		128
 #define MLXSW_QSFP_SUB_PAGE_NUM		3
 #define MLXSW_QSFP_SUB_PAGE_SIZE	48
@@ -104,28 +104,30 @@ static int
 mlxsw_qsfp_get_module_eeprom(struct mlxsw_qsfp *mlxsw_qsfp, u8 index,
 			     char *buf, loff_t off, size_t count)
 {
-	int page_ind, page, page_off, subpage, offset, res = 0;
+	int page_ind, page, page_off, subpage, offset, size, res = 0;
 	int err;
 
 	if (!count)
 		return -EINVAL;
 
 	memset(buf, 0, count);
+	size = count;
 	while (res < count) {
 		page_ind = off / MLXSW_QSFP_PAGE_SIZE;
 		page_off = off % MLXSW_QSFP_PAGE_SIZE;
 		page = mlxsw_qsfp_page_number[page_ind];
 		offset = mlxsw_qsfp_page_shift[page_ind] + page_off;
 		subpage = page_off / MLXSW_QSFP_SUB_PAGE_SIZE;
-		count = min_t(u16, count, mlxsw_qsfp_sub_page_size[subpage]);
+		size = min_t(u16, size, mlxsw_qsfp_sub_page_size[subpage]);
 		err = mlxsw_qsfp_query_module_eeprom(mlxsw_qsfp, index, offset,
-						     count, page, buf + res);
+						     size, page, buf + res);
 		if (err) {
 			dev_err(mlxsw_qsfp->bus_info->dev, "Eeprom query failed\n");
 			return err;
 		}
-		off += count;
-		res += count;
+		off += size;
+		res += size;
+		size = count - size;
 	}
 
 	return res;
@@ -205,7 +207,7 @@ int mlxsw_qsfp_init(struct mlxsw_core *mlxsw_core,
 	mlxsw_qsfp->bus_info = mlxsw_bus_info;
 	mlxsw_bus_info->dev->platform_data = mlxsw_qsfp;
 
-	for (i = 1; i < MLXSW_QSFP_MAX_NUM; i++) {
+	for (i = 1; i <= MLXSW_QSFP_MAX_NUM; i++) {
 		mlxsw_reg_pmlp_pack(pmlp_pl, i);
 		err = mlxsw_reg_query(mlxsw_qsfp->core, MLXSW_REG(pmlp),
 				      pmlp_pl);
