@@ -47,6 +47,8 @@
 #define MLXSW_QSFP_SUB_PAGE_SIZE	48
 #define MLXSW_QSFP_LAST_SUB_PAGE_SIZE	32
 #define MLXSW_QSFP_MAX_NUM		64
+#define MLXSW_QSFP_MIN_REQ_LEN		4
+#define MLXSW_QSFP_STATUS_VALID_TIME	(120 * HZ)
 
 static const u8 mlxsw_qsfp_page_number[] = { 0xa0, 0x00, 0x01, 0x02, 0x03 };
 static const u16 mlxsw_qsfp_page_shift[] = { 0x00, 0x80, 0x80, 0x80, 0x80 };
@@ -63,6 +65,11 @@ static const u16 mlxsw_qsfp_sub_page_size[] = {
 	MLXSW_QSFP_LAST_SUB_PAGE_SIZE
 };
 
+struct mlxsw_qsfp_module {
+	unsigned long last_updated;
+	u8 cache_status;
+};
+
 struct mlxsw_qsfp {
 	struct mlxsw_core *core;
 	const struct mlxsw_bus_info *bus_info;
@@ -70,6 +77,7 @@ struct mlxsw_qsfp {
 	struct device_attribute *dev_attrs;
 	struct bin_attribute *eeprom;
 	struct bin_attribute **eeprom_attr_list;
+	struct mlxsw_qsfp_module modules[MLXSW_QSFP_MAX_NUM];
 	u8 module_ind[MLXSW_QSFP_MAX_NUM];
 	u8 module_count;
 };
@@ -172,13 +180,20 @@ mlxsw_qsfp_status_show(struct device *dev, struct device_attribute *attr,
 	if (i == mlxsw_qsfp->module_count)
 		return -EINVAL;
 
-	mlxsw_reg_mcia_pack(mcia_pl, i, 0, 0, 0, MLXSW_QSFP_SUB_PAGE_SIZE,
+	if (time_before(jiffies, mlxsw_qsfp->modules[i].last_updated +
+			MLXSW_QSFP_STATUS_VALID_TIME))
+		return sprintf(buf, "%u\n",
+			       mlxsw_qsfp->modules[i].cache_status);
+
+	mlxsw_reg_mcia_pack(mcia_pl, i, 0, 0, 0, MLXSW_QSFP_MIN_REQ_LEN,
 			    MLXSW_QSFP_I2C_ADDR);
 	err = mlxsw_reg_query(mlxsw_qsfp->core, MLXSW_REG(mcia), mcia_pl);
 	if (err)
 		return err;
 
 	status = mlxsw_reg_mcia_status_get(mcia_pl);
+	mlxsw_qsfp->modules[i].cache_status = !status;
+	mlxsw_qsfp->modules[i].last_updated = jiffies;
 
 	return sprintf(buf, "%u\n", !status);
 }
