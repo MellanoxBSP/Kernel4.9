@@ -81,8 +81,8 @@
 #define MLXPLAT_CPLD_PWR_MASK		GENMASK(1, 0)
 #define MLXPLAT_CPLD_FAN_MASK		GENMASK(3, 0)
 #define MLXPLAT_CPLD_FAN_NG_MASK	GENMASK(5, 0)
-#define MLXPLAT_CPLD_LED_LO_NIBBLE_MASK	GENMASK(3, 0)
-#define MLXPLAT_CPLD_LED_HI_NIBBLE_MASK	GENMASK(7, 4)
+#define MLXPLAT_CPLD_LED_LO_NIBBLE_MASK	GENMASK(7, 4)
+#define MLXPLAT_CPLD_LED_HI_NIBBLE_MASK	GENMASK(3, 0)
 
 /* Start channel numbers */
 #define MLXPLAT_CPLD_CH1			2
@@ -589,12 +589,12 @@ static struct mlxreg_core_data mlxplat_mlxcpld_default_led_data[] = {
 	{
 		.label = "psu:green",
 		.reg = MLXPLAT_CPLD_LPC_REG_LED1_OFF,
-		.mask = MLXPLAT_CPLD_LED_LO_NIBBLE_MASK,
+		.mask = MLXPLAT_CPLD_LED_HI_NIBBLE_MASK,
 	},
 	{
 		.label = "psu:red",
 		.reg = MLXPLAT_CPLD_LPC_REG_LED1_OFF,
-		.mask = MLXPLAT_CPLD_LED_LO_NIBBLE_MASK,
+		.mask = MLXPLAT_CPLD_LED_HI_NIBBLE_MASK,
 	},
 	{
 		.label = "fan1:green",
@@ -648,47 +648,47 @@ static struct mlxreg_core_data mlxplat_mlxcpld_msn21xx_led_data[] = {
 	{
 		.label = "status:green",
 		.reg = MLXPLAT_CPLD_LPC_REG_LED1_OFF,
-		.mask = MLXPLAT_CPLD_LED_HI_NIBBLE_MASK,
+		.mask = MLXPLAT_CPLD_LED_LO_NIBBLE_MASK,
 	},
 	{
 		.label = "status:red",
 		.reg = MLXPLAT_CPLD_LPC_REG_LED1_OFF,
-		.mask = MLXPLAT_CPLD_LED_HI_NIBBLE_MASK
+		.mask = MLXPLAT_CPLD_LED_LO_NIBBLE_MASK
 	},
 	{
 		.label = "fan:green",
 		.reg = MLXPLAT_CPLD_LPC_REG_LED2_OFF,
-		.mask = MLXPLAT_CPLD_LED_HI_NIBBLE_MASK,
+		.mask = MLXPLAT_CPLD_LED_LO_NIBBLE_MASK,
 	},
 	{
 		.label = "fan:red",
 		.reg = MLXPLAT_CPLD_LPC_REG_LED2_OFF,
-		.mask = MLXPLAT_CPLD_LED_HI_NIBBLE_MASK,
+		.mask = MLXPLAT_CPLD_LED_LO_NIBBLE_MASK,
 	},
 	{
 		.label = "psu1:green",
 		.reg = MLXPLAT_CPLD_LPC_REG_LED4_OFF,
-		.mask = MLXPLAT_CPLD_LED_HI_NIBBLE_MASK,
+		.mask = MLXPLAT_CPLD_LED_LO_NIBBLE_MASK,
 	},
 	{
 		.label = "psu1:red",
 		.reg = MLXPLAT_CPLD_LPC_REG_LED4_OFF,
-		.mask = MLXPLAT_CPLD_LED_HI_NIBBLE_MASK,
+		.mask = MLXPLAT_CPLD_LED_LO_NIBBLE_MASK,
 	},
 	{
 		.label = "psu2:green",
 		.reg = MLXPLAT_CPLD_LPC_REG_LED4_OFF,
-		.mask = MLXPLAT_CPLD_LED_LO_NIBBLE_MASK,
+		.mask = MLXPLAT_CPLD_LED_HI_NIBBLE_MASK,
 	},
 	{
 		.label = "psu2:red",
 		.reg = MLXPLAT_CPLD_LPC_REG_LED4_OFF,
-		.mask = MLXPLAT_CPLD_LED_LO_NIBBLE_MASK,
+		.mask = MLXPLAT_CPLD_LED_HI_NIBBLE_MASK,
 	},
 	{
 		.label = "uid:blue",
 		.reg = MLXPLAT_CPLD_LPC_REG_LED5_OFF,
-		.mask = MLXPLAT_CPLD_LED_HI_NIBBLE_MASK,
+		.mask = MLXPLAT_CPLD_LED_LO_NIBBLE_MASK,
 	},
 };
 
@@ -705,19 +705,19 @@ static struct mlxreg_core_data mlxplat_mlxcpld_default_ng_led_data[] = {
 		.mask = MLXPLAT_CPLD_LED_LO_NIBBLE_MASK,
 	},
 	{
-		.label = "status:red",
+		.label = "status:orange",
 		.reg = MLXPLAT_CPLD_LPC_REG_LED1_OFF,
 		.mask = MLXPLAT_CPLD_LED_LO_NIBBLE_MASK
 	},
 	{
 		.label = "psu:green",
 		.reg = MLXPLAT_CPLD_LPC_REG_LED1_OFF,
-		.mask = MLXPLAT_CPLD_LED_LO_NIBBLE_MASK,
+		.mask = MLXPLAT_CPLD_LED_HI_NIBBLE_MASK,
 	},
 	{
-		.label = "psu:red",
+		.label = "psu:orange",
 		.reg = MLXPLAT_CPLD_LPC_REG_LED1_OFF,
-		.mask = MLXPLAT_CPLD_LED_LO_NIBBLE_MASK,
+		.mask = MLXPLAT_CPLD_LED_HI_NIBBLE_MASK,
 	},
 	{
 		.label = "fan1:green",
@@ -725,7 +725,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_default_ng_led_data[] = {
 		.mask = MLXPLAT_CPLD_LED_LO_NIBBLE_MASK,
 	},
 	{
-		.label = "fan1:red",
+		.label = "fan1:orange",
 		.reg = MLXPLAT_CPLD_LPC_REG_LED2_OFF,
 		.mask = MLXPLAT_CPLD_LED_LO_NIBBLE_MASK,
 	},
@@ -735,7 +735,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_default_ng_led_data[] = {
 		.mask = MLXPLAT_CPLD_LED_HI_NIBBLE_MASK,
 	},
 	{
-		.label = "fan2:red",
+		.label = "fan2:orange",
 		.reg = MLXPLAT_CPLD_LPC_REG_LED2_OFF,
 		.mask = MLXPLAT_CPLD_LED_HI_NIBBLE_MASK,
 	},
@@ -745,7 +745,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_default_ng_led_data[] = {
 		.mask = MLXPLAT_CPLD_LED_LO_NIBBLE_MASK,
 	},
 	{
-		.label = "fan3:red",
+		.label = "fan3:orange",
 		.reg = MLXPLAT_CPLD_LPC_REG_LED3_OFF,
 		.mask = MLXPLAT_CPLD_LED_LO_NIBBLE_MASK,
 	},
@@ -755,7 +755,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_default_ng_led_data[] = {
 		.mask = MLXPLAT_CPLD_LED_HI_NIBBLE_MASK,
 	},
 	{
-		.label = "fan4:red",
+		.label = "fan4:orange",
 		.reg = MLXPLAT_CPLD_LPC_REG_LED3_OFF,
 		.mask = MLXPLAT_CPLD_LED_HI_NIBBLE_MASK,
 	},
@@ -765,18 +765,18 @@ static struct mlxreg_core_data mlxplat_mlxcpld_default_ng_led_data[] = {
 		.mask = MLXPLAT_CPLD_LED_LO_NIBBLE_MASK,
 	},
 	{
-		.label = "fan5:red",
+		.label = "fan5:orange",
 		.reg = MLXPLAT_CPLD_LPC_REG_LED4_OFF,
 		.mask = MLXPLAT_CPLD_LED_LO_NIBBLE_MASK,
 	},
 	{
 		.label = "fan6:green",
-		.reg = MLXPLAT_CPLD_LPC_REG_LED5_OFF,
+		.reg = MLXPLAT_CPLD_LPC_REG_LED4_OFF,
 		.mask = MLXPLAT_CPLD_LED_HI_NIBBLE_MASK,
 	},
 	{
-		.label = "fan6:red",
-		.reg = MLXPLAT_CPLD_LPC_REG_LED5_OFF,
+		.label = "fan6:orange",
+		.reg = MLXPLAT_CPLD_LPC_REG_LED4_OFF,
 		.mask = MLXPLAT_CPLD_LED_HI_NIBBLE_MASK,
 	},
 };

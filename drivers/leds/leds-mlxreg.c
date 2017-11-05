@@ -228,7 +228,8 @@ static int mlxreg_led_config(struct mlxreg_led_priv_data *priv)
 
 		led_cdev = &led_data->led_cdev;
 		led_data->data_parent = priv;
-		if (strstr(data->label, "red")) {
+		if (strstr(data->label, "red") ||
+		    strstr(data->label, "orange")) {
 			brightness = LED_OFF;
 			led_data->base_color = MLXREG_LED_RED_SOLID;
 		} else if (strstr(data->label, "amber")) {
