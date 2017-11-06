@@ -53,16 +53,10 @@ struct mlxsw_thermal_trip {
 };
 
 static const struct mlxsw_thermal_trip default_thermal_trips[] = {
-	{	/* In range - 0-40% PWM */
+	{	/* Above normal - 60%-100% PWM */
 		.type		= THERMAL_TRIP_ACTIVE,
 		.temp		= 75000,
-		.min_state	= 0,
-		.max_state	= (4 * MLXSW_THERMAL_MAX_STATE) / 10,
-	},
-	{	/* High - 40-100% PWM */
-		.type		= THERMAL_TRIP_ACTIVE,
-		.temp		= 80000,
-		.min_state	= (4 * MLXSW_THERMAL_MAX_STATE) / 10,
+		.min_state	= (6 * MLXSW_THERMAL_MAX_STATE) / 10,
 		.max_state	= MLXSW_THERMAL_MAX_STATE,
 	},
 	{

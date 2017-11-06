@@ -49,6 +49,7 @@
 #define MLXSW_QSFP_MAX_NUM		64
 #define MLXSW_QSFP_MIN_REQ_LEN		4
 #define MLXSW_QSFP_STATUS_VALID_TIME	(120 * HZ)
+#define MLXSW_QSFP_MAX_CPLD_NUM		1
 
 static const u8 mlxsw_qsfp_page_number[] = { 0xa0, 0x00, 0x01, 0x02, 0x03 };
 static const u16 mlxsw_qsfp_page_shift[] = { 0x00, 0x80, 0x80, 0x80, 0x80 };
@@ -80,6 +81,8 @@ struct mlxsw_qsfp {
 	struct mlxsw_qsfp_module modules[MLXSW_QSFP_MAX_NUM];
 	u8 module_ind[MLXSW_QSFP_MAX_NUM];
 	u8 module_count;
+	struct attribute *cpld_attrs[MLXSW_QSFP_MAX_CPLD_NUM + 1];
+	struct device_attribute *cpld_dev_attrs;
 };
 
 static int
@@ -198,11 +201,37 @@ mlxsw_qsfp_status_show(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%u\n", !status);
 }
 
+static ssize_t
+mlxsw_qsfp_cpld_show(struct device *dev, struct device_attribute *attr,
+		     char *buf)
+{
+	struct mlxsw_qsfp *mlxsw_qsfp = dev_get_platdata(dev);
+	char msci_pl[MLXSW_REG_MSCI_LEN];
+	u32 version, i;
+	int err;
+
+	for (i = 0; i < MLXSW_QSFP_MAX_CPLD_NUM; i++) {
+		if ((mlxsw_qsfp->cpld_dev_attrs + i) == attr)
+			break;
+	}
+	if (i == MLXSW_QSFP_MAX_CPLD_NUM)
+		return -EINVAL;
+
+	mlxsw_reg_msci_pack(msci_pl, i);
+	err = mlxsw_reg_query(mlxsw_qsfp->core, MLXSW_REG(msci), msci_pl);
+	if (err)
+		return err;
+
+	version = mlxsw_reg_msci_version_get(msci_pl);
+
+	return sprintf(buf, "%u\n", version);
+}
+
 int mlxsw_qsfp_init(struct mlxsw_core *mlxsw_core,
 		    const struct mlxsw_bus_info *mlxsw_bus_info,
 		    struct mlxsw_qsfp **p_qsfp)
 {
-	struct device_attribute *dev_attr;
+	struct device_attribute *dev_attr, *cpld_dev_attr;
 	char pmlp_pl[MLXSW_REG_PMLP_LEN];
 	struct mlxsw_qsfp *mlxsw_qsfp;
 	struct bin_attribute *eeprom;
@@ -255,6 +284,13 @@ int mlxsw_qsfp_init(struct mlxsw_core *mlxsw_core,
 	if (!mlxsw_qsfp->dev_attrs)
 		return -ENOMEM;
 
+	mlxsw_qsfp->cpld_dev_attrs = devm_kzalloc(mlxsw_bus_info->dev,
+					MLXSW_QSFP_MAX_CPLD_NUM *
+					sizeof(*mlxsw_qsfp->cpld_dev_attrs),
+					GFP_KERNEL);
+	if (!mlxsw_qsfp->cpld_dev_attrs)
+		return -ENOMEM;
+
 	eeprom = mlxsw_qsfp->eeprom;
 	dev_attr = mlxsw_qsfp->dev_attrs;
 	for (i = 0; i < mlxsw_qsfp->module_count; i++, eeprom++, dev_attr++) {
@@ -285,10 +321,30 @@ int mlxsw_qsfp_init(struct mlxsw_core *mlxsw_core,
 		if (err)
 			goto err_create_bin_file;
 	}
+
+	cpld_dev_attr = mlxsw_qsfp->cpld_dev_attrs;
+	for (i = 0; i < MLXSW_QSFP_MAX_CPLD_NUM; i++, cpld_dev_attr++) {
+		cpld_dev_attr->show = mlxsw_qsfp_cpld_show;
+		cpld_dev_attr->attr.mode = 0444;
+		cpld_dev_attr->attr.name = devm_kasprintf(mlxsw_bus_info->dev,
+						     GFP_KERNEL,
+						     "cpld%d_version", i + 1);
+		mlxsw_qsfp->cpld_attrs[i] = &cpld_dev_attr->attr;
+		sysfs_attr_init(&cpld_dev_attr->attr);
+		err = sysfs_create_file(&mlxsw_bus_info->dev->kobj,
+					mlxsw_qsfp->cpld_attrs[i]);
+		if (err)
+			goto err_create_cpld_file;
+	}
+
 	*p_qsfp = mlxsw_qsfp;
 
 	return 0;
 
+err_create_cpld_file:
+	sysfs_remove_file(&mlxsw_bus_info->dev->kobj,
+			  mlxsw_qsfp->cpld_attrs[i--]);
+	i = mlxsw_qsfp->module_count;
 err_create_bin_file:
 	sysfs_remove_file(&mlxsw_bus_info->dev->kobj,
 			  mlxsw_qsfp->attrs[i--]);

@@ -4472,7 +4472,7 @@ enum mlxsw_reg_mfcr_pwm_frequency {
  */
 MLXSW_ITEM32(reg, mfcr, pwm_frequency, 0x00, 0, 6);
 
-#define MLXSW_MFCR_TACHOS_MAX 10
+#define MLXSW_MFCR_TACHOS_MAX 12
 
 /* reg_mfcr_tacho_active
  * Indicates which of the tachometer is active (bit per tachometer).
@@ -4940,6 +4940,43 @@ static inline void mlxsw_reg_mpar_pack(char *payload, u8 local_port,
 	mlxsw_reg_mpar_enable_set(payload, enable);
 	mlxsw_reg_mpar_i_e_set(payload, i_e);
 	mlxsw_reg_mpar_pa_id_set(payload, pa_id);
+}
+
+/* MSCI - Management System CPLD Information Register
+ * ---------------------------------------------------
+ * This register allows querying for the System CPLD(s) information.
+ */
+#define MLXSW_REG_MSCI_ID 0x902A
+#define MLXSW_REG_MSCI_LEN 0x10
+
+static const struct mlxsw_reg_info mlxsw_reg_msci = {
+	.id = MLXSW_REG_MSCI_ID,
+	.len = MLXSW_REG_MSCI_LEN,
+};
+
+/* reg_msci_index
+ * Index to access.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, msci, index, 0x00, 0, 4);
+
+/* reg_msci_pwm_version
+ * Controls the frequency of the PWM signal.
+ * Access: R0
+ */
+MLXSW_ITEM32(reg, msci, version, 0x04, 0, 32);
+
+static inline void
+mlxsw_reg_msci_pack(char *payload, u8 index)
+{
+	MLXSW_REG_ZERO(msci, payload);
+	mlxsw_reg_msci_index_set(payload, index);
+}
+
+static inline void
+mlxsw_reg_msci_unpack(char *payload, u16 *p_version)
+{
+	*p_version = mlxsw_reg_msci_version_get(payload);
 }
 
 /* MLCR - Management LED Control Register
