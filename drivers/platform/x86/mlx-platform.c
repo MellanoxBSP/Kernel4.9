@@ -296,8 +296,13 @@ struct mlxreg_core_hotplug_platform_data mlxplat_mlxcpld_default_data = {
 };
 
 /* Platform hotplug MSN21xx system family data */
-static struct i2c_board_info mlxplat_mlxcpld_msn21xx_pwr = {
-	I2C_BOARD_INFO("holder", 0x50),
+static struct i2c_board_info mlxplat_mlxcpld_msn21xx_pwr[] = {
+	{
+		I2C_BOARD_INFO("holder", 0x59),
+	},
+	{
+		I2C_BOARD_INFO("holder", 0x58),
+	},
 };
 
 static struct mlxreg_core_data mlxplat_mlxcpld_msn21xx_pwr_items_data[] = {
@@ -305,14 +310,14 @@ static struct mlxreg_core_data mlxplat_mlxcpld_msn21xx_pwr_items_data[] = {
 		.label = "pwr1",
 		.reg = MLXPLAT_CPLD_LPC_REG_PWR_OFF,
 		.mask = BIT(0),
-		.hpdev.brdinfo = &mlxplat_mlxcpld_msn21xx_pwr,
+		.hpdev.brdinfo = &mlxplat_mlxcpld_msn21xx_pwr[0],
 		.hpdev.nr = MLXPLAT_CPLD_PSU_DEFAULT_NR,
 	},
 	{
 		.label = "pwr2",
 		.reg = MLXPLAT_CPLD_LPC_REG_PWR_OFF,
 		.mask = BIT(1),
-		.hpdev.brdinfo = &mlxplat_mlxcpld_msn21xx_pwr,
+		.hpdev.brdinfo = &mlxplat_mlxcpld_msn21xx_pwr[1],
 		.hpdev.nr = MLXPLAT_CPLD_PSU_DEFAULT_NR,
 	},
 };
@@ -345,14 +350,14 @@ static struct mlxreg_core_data mlxplat_mlxcpld_msn201x_pwr_items_data[] = {
 		.label = "pwr1",
 		.reg = MLXPLAT_CPLD_LPC_REG_PWR_OFF,
 		.mask = BIT(0),
-		.hpdev.brdinfo = &mlxplat_mlxcpld_msn21xx_pwr,
+		.hpdev.brdinfo = &mlxplat_mlxcpld_msn21xx_pwr[0],
 		.hpdev.nr = MLXPLAT_CPLD_PSU_MSNXXXX_NR,
 	},
 	{
 		.label = "pwr2",
 		.reg = MLXPLAT_CPLD_LPC_REG_PWR_OFF,
 		.mask = BIT(1),
-		.hpdev.brdinfo = &mlxplat_mlxcpld_msn21xx_pwr,
+		.hpdev.brdinfo = &mlxplat_mlxcpld_msn21xx_pwr[1],
 		.hpdev.nr = MLXPLAT_CPLD_PSU_MSNXXXX_NR,
 	},
 };
