@@ -4960,8 +4960,8 @@ static const struct mlxsw_reg_info mlxsw_reg_msci = {
  */
 MLXSW_ITEM32(reg, msci, index, 0x00, 0, 4);
 
-/* reg_msci_pwm_version
- * Controls the frequency of the PWM signal.
+/* reg_msci_version
+ * CPLD version.
  * Access: R0
  */
 MLXSW_ITEM32(reg, msci, version, 0x04, 0, 32);
