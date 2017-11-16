@@ -79,7 +79,7 @@ struct mlxreg_led_data {
  */
 struct mlxreg_led_priv_data {
 	struct platform_device *pdev;
-	struct mlxreg_core_led_platform_data *pdata;
+	struct mlxreg_core_platform_data *pdata;
 	struct mutex access_lock; /* protect IO operations */
 };
 
@@ -87,7 +87,7 @@ static int
 mlxreg_led_store_hw(struct mlxreg_led_data *led_data, u8 vset)
 {
 	struct mlxreg_led_priv_data *priv = led_data->data_parent;
-	struct mlxreg_core_led_platform_data *led_pdata = priv->pdata;
+	struct mlxreg_core_platform_data *led_pdata = priv->pdata;
 	struct mlxreg_core_data *data = led_data->data;
 	u32 regval;
 	u32 nib;
@@ -125,7 +125,7 @@ static enum led_brightness
 mlxreg_led_get_hw(struct mlxreg_led_data *led_data)
 {
 	struct mlxreg_led_priv_data *priv = led_data->data_parent;
-	struct mlxreg_core_led_platform_data *led_pdata = priv->pdata;
+	struct mlxreg_core_platform_data *led_pdata = priv->pdata;
 	struct mlxreg_core_data *data = led_data->data;
 	u32 regval;
 	int ret;
@@ -212,7 +212,7 @@ mlxreg_led_blink_set(struct led_classdev *cled, unsigned long *delay_on,
 
 static int mlxreg_led_config(struct mlxreg_led_priv_data *priv)
 {
-	struct mlxreg_core_led_platform_data *led_pdata = priv->pdata;
+	struct mlxreg_core_platform_data *led_pdata = priv->pdata;
 	struct mlxreg_core_data *data = led_pdata->data;
 	struct mlxreg_led_data *led_data;
 	struct led_classdev *led_cdev;
@@ -266,7 +266,7 @@ static int mlxreg_led_config(struct mlxreg_led_priv_data *priv)
 
 static int mlxreg_led_probe(struct platform_device *pdev)
 {
-	struct mlxreg_core_led_platform_data *led_pdata;
+	struct mlxreg_core_platform_data *led_pdata;
 	struct mlxreg_led_priv_data *priv;
 
 	led_pdata = dev_get_platdata(&pdev->dev);

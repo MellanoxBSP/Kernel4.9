@@ -61,6 +61,7 @@ struct mlxreg_hotplug_device {
  * @label: attribute register offset;
  * @reg: attribute register;
  * @mask: attribute access mask;
+ * @mode: access mode;
  * @bit: attribute effective bit;
  * @np - pointer to node platform associated with attribute;
  * @hpdev - hotplug device data;
@@ -72,6 +73,7 @@ struct mlxreg_core_data {
 	u32 reg;
 	u32 mask;
 	u32 bit;
+	umode_t	mode;
 	struct device_node *np;
 	struct mlxreg_hotplug_device hpdev;
 	u8 health_cntr;
@@ -104,13 +106,13 @@ struct mlxreg_core_item {
 };
 
 /**
- * struct mlxreg_core_led_platform_data - led platform data:
+ * struct mlxreg_core_platform_data - platform data:
  *
  * @led_data: led private data;
  * @regmap: register map of parent device;
  * @counter: number of led instances;
  */
-struct mlxreg_core_led_platform_data {
+struct mlxreg_core_platform_data {
 	struct mlxreg_core_data *data;
 	void *regmap;
 	int counter;
