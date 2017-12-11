@@ -550,10 +550,13 @@ static int mlxreg_hotplug_set_irq(struct mlxreg_hotplug_priv_data *priv)
 		goto access_error;
 
 	/* Keep low aggregation initial status as zero and unmask events. */
-	ret = regmap_write(priv->regmap, pdata->cell_low +
-			   MLXREG_HOTPLUG_AGGR_MASK_OFF, pdata->mask_low);
-	if (ret)
-		goto access_error;
+	if (pdata->cell_low) {
+		ret = regmap_write(priv->regmap, pdata->cell_low +
+				   MLXREG_HOTPLUG_AGGR_MASK_OFF,
+				   pdata->mask_low);
+		if (ret)
+			goto access_error;
+	}
 
 	/* Invoke work handler for initializing hot plug devices setting. */
 	mlxreg_hotplug_work_handler(&priv->dwork_irq.work);
@@ -582,9 +585,10 @@ static void mlxreg_hotplug_unset_irq(struct mlxreg_hotplug_priv_data *priv)
 	disable_irq(priv->irq);
 	cancel_delayed_work_sync(&priv->dwork_irq);
 
-	/* Mask low aggregation event. */
-	regmap_write(priv->regmap, pdata->cell_low +
-		     MLXREG_HOTPLUG_AGGR_MASK_OFF, 0);
+	/* Mask low aggregation event, if defined. */
+	if (pdata->cell_low)
+		regmap_write(priv->regmap, pdata->cell_low +
+			     MLXREG_HOTPLUG_AGGR_MASK_OFF, 0);
 
 	/* Mask aggregation event. */
 	regmap_write(priv->regmap, pdata->cell + MLXREG_HOTPLUG_AGGR_MASK_OFF,
