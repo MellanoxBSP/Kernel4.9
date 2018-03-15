@@ -58,6 +58,7 @@
 #define MLXREG_HOTPLUG_PROP_STATUS	"status"
 
 #define MLXREG_HOTPLUG_ATTRS_MAX	24
+#define MLXREG_HOTPLUG_NOT_ASSERT	3
 
 /**
  * struct mlxreg_hotplug_priv_data - platform private data:
@@ -74,6 +75,7 @@
  * @cell: location of top aggregation interrupt register;
  * @mask: top aggregation interrupt common mask;
  * @aggr_cache: last value of aggregation register status;
+ * @not_asserted: number of entries in workqueue with no signal assertion;
  */
 struct mlxreg_hotplug_priv_data {
 	int irq;
@@ -94,6 +96,7 @@ struct mlxreg_hotplug_priv_data {
 	u32 mask;
 	u32 aggr_cache;
 	bool after_probe;
+	u8 not_asserted;
 };
 
 #if defined(CONFIG_OF_DYNAMIC)
@@ -472,6 +475,13 @@ static void mlxreg_hotplug_work_handler(struct work_struct *work)
 	aggr_asserted = priv->aggr_cache ^ regval;
 	priv->aggr_cache = regval;
 
+	if (priv->not_asserted == MLXREG_HOTPLUG_NOT_ASSERT) {
+		priv->not_asserted = 0;
+		aggr_asserted = pdata->mask;
+	}
+	if (!aggr_asserted)
+		goto unmask_event;
+
 	/* Handle topology and health configuration changes. */
 	for (i = 0; i < pdata->counter; i++, item++) {
 		if (aggr_asserted & item->aggr_mask) {
@@ -503,6 +513,8 @@ static void mlxreg_hotplug_work_handler(struct work_struct *work)
 		return;
 	}
 
+unmask_event:
+	priv->not_asserted++;
 	/* Unmask aggregation event (no need acknowledge). */
 	ret = regmap_write(priv->regmap, pdata->cell +
 			   MLXREG_HOTPLUG_AGGR_MASK_OFF, pdata->mask);
