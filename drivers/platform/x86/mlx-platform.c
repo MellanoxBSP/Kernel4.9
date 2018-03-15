@@ -99,6 +99,15 @@
 #define MLXPLAT_CPLD_LED_LO_NIBBLE_MASK	GENMASK(7, 4)
 #define MLXPLAT_CPLD_LED_HI_NIBBLE_MASK	GENMASK(3, 0)
 
+/* Default I2C parent bus number */
+#define MLXPLAT_CPLD_PHYS_ADAPTER_DEF_NR	1
+
+/* Maximum number of possible physical buses equipped on system */
+#define MLXPLAT_CPLD_MAX_PHYS_ADAPTER_NUM	16
+
+/* Number of channels in group */
+#define MLXPLAT_CPLD_GRP_CHNL_NUM		8
+
 /* Start channel numbers */
 #define MLXPLAT_CPLD_CH1			2
 #define MLXPLAT_CPLD_CH2			10
@@ -106,7 +115,8 @@
 /* Number of LPC attached MUX platform devices */
 #define MLXPLAT_CPLD_LPC_MUX_DEVS		2
 
-/* PSU adapter numbers */
+/* Hotplug devices adapter numbers */
+#define MLXPLAT_CPLD_NR_NONE			-1
 #define MLXPLAT_CPLD_PSU_DEFAULT_NR		10
 #define MLXPLAT_CPLD_PSU_MSNXXXX_NR		4
 
@@ -137,7 +147,7 @@ static const struct resource mlxplat_lpc_resources[] = {
 };
 
 /* Platform default channels */
-static const int mlxplat_default_channels[][8] = {
+static const int mlxplat_default_channels[][MLXPLAT_CPLD_GRP_CHNL_NUM] = {
 	{
 		MLXPLAT_CPLD_CH1, MLXPLAT_CPLD_CH1 + 1, MLXPLAT_CPLD_CH1 + 2,
 		MLXPLAT_CPLD_CH1 + 3, MLXPLAT_CPLD_CH1 + 4, MLXPLAT_CPLD_CH1 +
@@ -985,6 +995,8 @@ static int __init mlxplat_dmi_default_matched(const struct dmi_system_id *dmi)
 				ARRAY_SIZE(mlxplat_default_channels[i]);
 	}
 	mlxplat_hotplug = &mlxplat_mlxcpld_default_data;
+	mlxplat_hotplug->deferred_nr =
+		mlxplat_default_channels[i - 1][MLXPLAT_CPLD_GRP_CHNL_NUM - 1];
 	mlxplat_led = &mlxplat_default_led_data;
 	mlxplat_regs_io = &mlxplat_default_regs_io_data;
 
@@ -1001,6 +1013,8 @@ static int __init mlxplat_dmi_msn21xx_matched(const struct dmi_system_id *dmi)
 				ARRAY_SIZE(mlxplat_msn21xx_channels);
 	}
 	mlxplat_hotplug = &mlxplat_mlxcpld_msn21xx_data;
+	mlxplat_hotplug->deferred_nr =
+		mlxplat_msn21xx_channels[MLXPLAT_CPLD_GRP_CHNL_NUM - 1];
 	mlxplat_led = &mlxplat_msn21xx_led_data;
 	mlxplat_regs_io = &mlxplat_default_regs_io_data;
 
@@ -1017,6 +1031,8 @@ static int __init mlxplat_dmi_msn274x_matched(const struct dmi_system_id *dmi)
 				ARRAY_SIZE(mlxplat_msn21xx_channels);
 	}
 	mlxplat_hotplug = &mlxplat_mlxcpld_msn274x_data;
+	mlxplat_hotplug->deferred_nr =
+		mlxplat_msn21xx_channels[MLXPLAT_CPLD_GRP_CHNL_NUM - 1];
 	mlxplat_led = &mlxplat_default_led_data;
 	mlxplat_regs_io = &mlxplat_default_regs_io_data;
 
@@ -1033,6 +1049,8 @@ static int __init mlxplat_dmi_qmb7xx_matched(const struct dmi_system_id *dmi)
 				ARRAY_SIZE(mlxplat_msn21xx_channels);
 	}
 	mlxplat_hotplug = &mlxplat_mlxcpld_default_ng_data;
+	mlxplat_hotplug->deferred_nr =
+		mlxplat_default_channels[i - 1][MLXPLAT_CPLD_GRP_CHNL_NUM - 1];
 	mlxplat_led = &mlxplat_default_ng_led_data;
 	mlxplat_regs_io = &mlxplat_default_regs_io_data;
 
@@ -1049,6 +1067,8 @@ static int __init mlxplat_dmi_msn201x_matched(const struct dmi_system_id *dmi)
 				ARRAY_SIZE(mlxplat_msn21xx_channels);
 	}
 	mlxplat_hotplug = &mlxplat_mlxcpld_msn201x_data;
+	mlxplat_hotplug->deferred_nr =
+		mlxplat_msn21xx_channels[MLXPLAT_CPLD_GRP_CHNL_NUM - 1];
 	mlxplat_led = &mlxplat_msn21xx_led_data;
 	mlxplat_regs_io = &mlxplat_default_regs_io_data;
 
@@ -1161,11 +1181,49 @@ static const struct dmi_system_id mlxplat_dmi_table[] __initconst = {
 
 MODULE_DEVICE_TABLE(dmi, mlxplat_dmi_table);
 
+static int mlxplat_mlxcpld_verify_bus_topology(int *nr)
+{
+	struct i2c_adapter *search_adap;
+	int shift, i;
+
+	/* Scan adapters from expected id to verify it is free. */
+	*nr = MLXPLAT_CPLD_PHYS_ADAPTER_DEF_NR;
+	for (i = MLXPLAT_CPLD_PHYS_ADAPTER_DEF_NR; i <
+	     MLXPLAT_CPLD_MAX_PHYS_ADAPTER_NUM; i++) {
+		search_adap = i2c_get_adapter(i);
+		if (search_adap) {
+			i2c_put_adapter(search_adap);
+			continue;
+		}
+
+		/* Return if expected parent adapter is free. */
+		if (i == MLXPLAT_CPLD_PHYS_ADAPTER_DEF_NR)
+			return 0;
+		break;
+	}
+
+	/* Return with error if free id for adapter is not found. */
+	if (i == MLXPLAT_CPLD_MAX_PHYS_ADAPTER_NUM)
+		return -ENODEV;
+
+	/* Shift adapter ids, since expected parent adapter is not free. */
+	*nr = i;
+	for (i = 0; i < ARRAY_SIZE(mlxplat_mux_data); i++) {
+		shift = *nr - mlxplat_mux_data[i].parent;
+		mlxplat_mux_data[i].parent = *nr;
+		mlxplat_mux_data[i].base_nr += shift;
+		if (shift > 0)
+			mlxplat_hotplug->shift_nr = shift;
+	}
+
+	return 0;
+}
+
 static int __init mlxplat_init(void)
 {
 	struct mlxplat_priv *priv;
 	void __iomem *base;
-	int i, j, err = 0;
+	int i, j, nr, err = 0;
 
 	if (!dmi_check_system(mlxplat_dmi_table))
 		return -ENODEV;
@@ -1185,7 +1243,12 @@ static int __init mlxplat_init(void)
 	}
 	platform_set_drvdata(mlxplat_dev, priv);
 
-	priv->pdev_i2c = platform_device_register_simple("i2c_mlxcpld", -1,
+	err = mlxplat_mlxcpld_verify_bus_topology(&nr);
+	if (nr < 0)
+		goto fail_alloc;
+
+	nr = (nr == MLXPLAT_CPLD_MAX_PHYS_ADAPTER_NUM) ? -1 : nr;
+	priv->pdev_i2c = platform_device_register_simple("i2c_mlxcpld", nr,
 							 NULL, 0);
 	if (IS_ERR(priv->pdev_i2c)) {
 		err = PTR_ERR(priv->pdev_i2c);
