@@ -58,15 +58,14 @@ struct mlxreg_hotplug_device {
  * struct mlxreg_core_data - attributes control data:
  *
  * @label: attribute label;
- * @label: attribute register offset;
  * @reg: attribute register;
  * @mask: attribute access mask;
- * @mode: access mode;
  * @bit: attribute effective bit;
+ * @mode: access mode;
  * @np - pointer to node platform associated with attribute;
  * @hpdev - hotplug device data;
  * @health_cntr: dynamic device health indication counter;
- * @attached: true if device has been attached after good helath indication;
+ * @attached: true if device has been attached after good health indication;
  */
 struct mlxreg_core_data {
 	char label[MLXREG_CORE_LABEL_MAX_SIZE];

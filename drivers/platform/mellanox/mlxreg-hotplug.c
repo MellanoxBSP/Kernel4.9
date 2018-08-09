@@ -50,10 +50,8 @@
 #define MLXREG_HOTPLUG_MASK_OFF		2
 #define MLXREG_HOTPLUG_AGGR_MASK_OFF	1
 
-/* ASIC health parameters. */
-#define MLXREG_HOTPLUG_DOWN_MASK	0x00
-#define MLXREG_HOTPLUG_HEALTH_MASK	0x02
-#define MLXREG_HOTPLUG_RST_CNTR		2
+/* ASIC good health mask. */
+#define MLXREG_HOTPLUG_GOOD_HEALTH_MASK	0x02
 
 #define MLXREG_HOTPLUG_ATTRS_MAX	24
 #define MLXREG_HOTPLUG_NOT_ASSERT	3
@@ -68,7 +66,6 @@
  * @dwork_irq: delayed work template;
  * @lock: spin lock;
  * @hwmon: hwmon device;
- * @kobj: hwmon kobject for notification;
  * @mlxreg_hotplug_attr: sysfs attributes array;
  * @mlxreg_hotplug_dev_attr: sysfs sensor device attribute array;
  * @group: sysfs attribute group;
@@ -88,7 +85,6 @@ struct mlxreg_hotplug_priv_data {
 	struct delayed_work dwork_irq;
 	spinlock_t lock; /* sync with interrupt */
 	struct device *hwmon;
-	struct kobject *kobj;
 	struct attribute *mlxreg_hotplug_attr[MLXREG_HOTPLUG_ATTRS_MAX + 1];
 	struct sensor_device_attribute_2
 			mlxreg_hotplug_dev_attr[MLXREG_HOTPLUG_ATTRS_MAX];
@@ -107,7 +103,7 @@ static int mlxreg_hotplug_device_create(struct mlxreg_hotplug_priv_data *priv,
 	struct mlxreg_core_hotplug_platform_data *pdata;
 
 	/* Notify user by sending hwmon uevent. */
-	kobject_uevent(priv->kobj, KOBJ_CHANGE);
+	kobject_uevent(&priv->hwmon->kobj, KOBJ_CHANGE);
 
 	/*
 	 * Return if adapter number is negative. It could be in case hotplug
@@ -145,7 +141,7 @@ mlxreg_hotplug_device_destroy(struct mlxreg_hotplug_priv_data *priv,
 			      struct mlxreg_core_data *data)
 {
 	/* Notify user by sending hwmon uevent. */
-	kobject_uevent(priv->kobj, KOBJ_CHANGE);
+	kobject_uevent(&priv->hwmon->kobj, KOBJ_CHANGE);
 
 	if (data->hpdev.client) {
 		i2c_unregister_device(data->hpdev.client);
@@ -336,23 +332,19 @@ mlxreg_hotplug_health_work_helper(struct mlxreg_hotplug_priv_data *priv,
 			goto out;
 
 		regval &= data->mask;
+
+		if (item->cache == regval)
+			goto ack_event;
+
 		/*
 		 * ASIC health indication is provided through two bits. Bits
 		 * value 0x2 indicates that ASIC reached the good health, value
 		 * 0x0 indicates ASIC the bad health or dormant state and value
-		 * 0x2 indicates the booting state. During ASIC reset it should
+		 * 0x3 indicates the booting state. During ASIC reset it should
 		 * pass the following states: dormant -> booting -> good.
-		 * The transition from dormant to booting state and from
-		 * booting to good state are indicated by ASIC twice, so actual
-		 * sequence for getting to the steady state after reset is:
-		 * dormant -> booting -> booting -> good -> good. It is
-		 * possible that due to some hardware noise, the transition
-		 * sequence will look like: dormant -> booting -> [ booting ->
-		 * good -> dormant -> booting ] -> good -> good.
 		 */
-		if (regval == MLXREG_HOTPLUG_HEALTH_MASK) {
-			if ((++data->health_cntr == MLXREG_HOTPLUG_RST_CNTR) ||
-			    !priv->after_probe) {
+		if (regval == MLXREG_HOTPLUG_GOOD_HEALTH_MASK) {
+			if (!data->attached) {
 				/*
 				 * ASIC is in steady state. Connect associated
 				 * device, if configured.
@@ -363,25 +355,17 @@ mlxreg_hotplug_health_work_helper(struct mlxreg_hotplug_priv_data *priv,
 		} else {
 			if (data->attached) {
 				/*
-				 * ASIC health is dropped after ASIC has been
+				 * ASIC health is failed after ASIC has been
 				 * in steady state. Disconnect associated
 				 * device, if it has been connected.
 				 */
 				mlxreg_hotplug_device_destroy(priv, data);
 				data->attached = false;
 				data->health_cntr = 0;
-			} else if (regval == MLXREG_HOTPLUG_DOWN_MASK &&
-				   item->cache == MLXREG_HOTPLUG_HEALTH_MASK) {
-				/*
-				 * Decrease counter, if health has been dropped
-				 * before ASIC reaches the steady state, like:
-				 * good -> dormant -> booting.
-				 */
-				data->health_cntr--;
 			}
 		}
 		item->cache = regval;
-
+ack_event:
 		/* Acknowledge event. */
 		ret = regmap_write(priv->regmap, data->reg +
 				   MLXREG_HOTPLUG_EVENT_OFF, 0);
@@ -674,7 +658,6 @@ static int mlxreg_hotplug_probe(struct platform_device *pdev)
 			PTR_ERR(priv->hwmon));
 		return PTR_ERR(priv->hwmon);
 	}
-	priv->kobj = &priv->hwmon->kobj;
 
 	/* Perform initial interrupts setup. */
 	mlxreg_hotplug_set_irq(priv);

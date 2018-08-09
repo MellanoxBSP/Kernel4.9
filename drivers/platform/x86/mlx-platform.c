@@ -83,12 +83,12 @@
 #define MLXPLAT_CPLD_LPC_REG_TACHO4_OFFSET	0xe7
 #define MLXPLAT_CPLD_LPC_REG_TACHO5_OFFSET	0xe8
 #define MLXPLAT_CPLD_LPC_REG_TACHO6_OFFSET	0xe9
-#define MLXPLAT_CPLD_LPC_REG_TACHO7_OFFSET	0xea
-#define MLXPLAT_CPLD_LPC_REG_TACHO8_OFFSET	0xeb
-#define MLXPLAT_CPLD_LPC_REG_TACHO9_OFFSET	0xec
-#define MLXPLAT_CPLD_LPC_REG_TACHO10_OFFSET	0xed
-#define MLXPLAT_CPLD_LPC_REG_TACHO11_OFFSET	0xee
-#define MLXPLAT_CPLD_LPC_REG_TACHO12_OFFSET	0xef
+#define MLXPLAT_CPLD_LPC_REG_TACHO7_OFFSET	0xeb
+#define MLXPLAT_CPLD_LPC_REG_TACHO8_OFFSET	0xec
+#define MLXPLAT_CPLD_LPC_REG_TACHO9_OFFSET	0xed
+#define MLXPLAT_CPLD_LPC_REG_TACHO10_OFFSET	0xee
+#define MLXPLAT_CPLD_LPC_REG_TACHO11_OFFSET	0xef
+#define MLXPLAT_CPLD_LPC_REG_TACHO12_OFFSET	0xf0
 #define MLXPLAT_CPLD_LPC_IO_RANGE		0x100
 #define MLXPLAT_CPLD_LPC_I2C_CH1_OFF		0xdb
 #define MLXPLAT_CPLD_LPC_I2C_CH2_OFF		0xda
@@ -1499,21 +1499,21 @@ static const struct dmi_system_id mlxplat_dmi_table[] __initconst = {
 		.callback = mlxplat_dmi_qmb7xx_matched,
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Mellanox Technologies"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "QMB7"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "MQM87"),
 		},
 	},
 	{
 		.callback = mlxplat_dmi_qmb7xx_matched,
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Mellanox Technologies"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "SN37"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "MSN37"),
 		},
 	},
 	{
 		.callback = mlxplat_dmi_qmb7xx_matched,
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Mellanox Technologies"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "SN34"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "MSN34"),
 		},
 	},
 	{
@@ -1704,8 +1704,8 @@ static int __init mlxplat_init(void)
 					PLATFORM_DEVID_NONE, NULL, 0,
 					mlxplat_fan,
 					sizeof(*mlxplat_fan));
-		if (IS_ERR(priv->pdev_io_regs)) {
-			err = PTR_ERR(priv->pdev_io_regs);
+		if (IS_ERR(priv->pdev_fan)) {
+			err = PTR_ERR(priv->pdev_fan);
 			goto fail_platform_io_regs_register;
 		}
 	}
