@@ -1,36 +1,5 @@
-/*
- * drivers/net/ethernet/mellanox/mlxsw/i2c.c
- * Copyright (c) 2016 Mellanox Technologies. All rights reserved.
- * Copyright (c) 2016 Vadim Pasternak <vadimp@mellanox.com>
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
- *    contributors may be used to endorse or promote products derived from
- *    this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
+/* Copyright (c) 2016-2018 Mellanox Technologies. All rights reserved */
 
 #include <linux/err.h>
 #include <linux/i2c.h>
@@ -45,8 +14,6 @@
 #include "cmd.h"
 #include "core.h"
 #include "i2c.h"
-
-static const char mlxsw_i2c_driver_name[] = "mlxsw_i2c";
 
 #define MLXSW_I2C_CIR2_BASE		0x72000
 #define MLXSW_I2C_CIR_STATUS_OFF	0x18
@@ -364,10 +331,7 @@ mlxsw_i2c_cmd(struct device *dev, size_t in_mbox_size, u8 *in_mbox,
 	if (reg_size % MLXSW_I2C_BLK_MAX)
 		num++;
 
-	if (mutex_lock_interruptible(&mlxsw_i2c->cmd.lock) < 0) {
-		dev_err(&client->dev, "Could not acquire lock");
-		return -EINVAL;
-	}
+	mutex_lock(&mlxsw_i2c->cmd.lock);
 
 	err = mlxsw_i2c_write(dev, reg_size, in_mbox, num, status);
 	if (err)
@@ -536,6 +500,7 @@ static int mlxsw_i2c_probe(struct i2c_client *client,
 	mlxsw_i2c->bus_info.device_kind = id->name;
 	mlxsw_i2c->bus_info.device_name = client->name;
 	mlxsw_i2c->bus_info.dev = &client->dev;
+	mlxsw_i2c->bus_info.low_frequency = true;
 	mlxsw_i2c->dev = &client->dev;
 
 	err = mlxsw_core_bus_device_register(&mlxsw_i2c->bus_info,

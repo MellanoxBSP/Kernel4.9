@@ -27,7 +27,10 @@
 #define MLXREG_FAN_SPEED_MAX			(MLXREG_FAN_MAX_STATE * 2)
 #define MLXREG_FAN_SPEED_MIN_LEVEL		2	/* 20 percent */
 #define MLXREG_FAN_TACHO_SAMPLES_PER_PULSE_DEF	44
-#define MLXREG_FAN_TACHO_DIVIDER_DEF		1132
+#define MLXREG_FAN_TACHO_DIVIDER_MIN		283
+#define MLXREG_FAN_TACHO_DIVIDER_DEF		(MLXREG_FAN_TACHO_DIVIDER_MIN \
+						 * 4)
+#define MLXREG_FAN_TACHO_DIVIDER_SCALE_MAX	32
 /*
  * FAN datasheet defines the formula for RPM calculations as RPM = 15/t-high.
  * The logic in a programmable device measures the time t-high by sampling the
@@ -51,7 +54,7 @@
  */
 #define MLXREG_FAN_GET_RPM(rval, d, s)	(DIV_ROUND_CLOSEST(15000000 * 100, \
 					 ((rval) + (s)) * (d)))
-#define MLXREG_FAN_GET_FAULT(val, mask) (!((val) ^ (mask)))
+#define MLXREG_FAN_GET_FAULT(val, mask) ((val) == (mask))
 #define MLXREG_FAN_PWM_DUTY2STATE(duty)	(DIV_ROUND_CLOSEST((duty) *	\
 					 MLXREG_FAN_MAX_STATE,		\
 					 MLXREG_FAN_MAX_DUTY))
@@ -360,12 +363,57 @@ static const struct thermal_cooling_device_ops mlxreg_fan_cooling_ops = {
 	.set_cur_state	= mlxreg_fan_set_cur_state,
 };
 
+static int mlxreg_fan_connect_verify(struct mlxreg_fan *fan,
+				     struct mlxreg_core_data *data,
+				     bool *connected)
+{
+	u32 regval;
+	int err;
+
+	err = regmap_read(fan->regmap, data->capability, &regval);
+	if (err) {
+		dev_err(fan->dev, "Failed to query capability register 0x%08x\n",
+			data->capability);
+		return err;
+	}
+
+	*connected = (regval & data->bit) ? true : false;
+
+	return 0;
+}
+
+static int mlxreg_fan_speed_divider_get(struct mlxreg_fan *fan,
+					struct mlxreg_core_data *data)
+{
+	u32 regval;
+	int err;
+
+	err = regmap_read(fan->regmap, data->capability, &regval);
+	if (err) {
+		dev_err(fan->dev, "Failed to query capability register 0x%08x\n",
+			data->capability);
+		return err;
+	}
+
+	/*
+	 * Set divider value according to the capability register, in case it
+	 * contains valid value. Otherwise use default value. The purpose of
+	 * this validation is to protect against the old hardware, in which
+	 * this register can be un-initialized.
+	 */
+	if (regval > 0 && regval <= MLXREG_FAN_TACHO_DIVIDER_SCALE_MAX)
+		fan->divider = regval * MLXREG_FAN_TACHO_DIVIDER_MIN;
+
+	return 0;
+}
+
 static int mlxreg_fan_config(struct mlxreg_fan *fan,
 			     struct mlxreg_core_platform_data *pdata)
 {
 	struct mlxreg_core_data *data = pdata->data;
-	bool configured = false;
+	bool configured = false, connected = false;
 	int tacho_num = 0, i;
+	int err;
 
 	fan->samples = MLXREG_FAN_TACHO_SAMPLES_PER_PULSE_DEF;
 	fan->divider = MLXREG_FAN_TACHO_DIVIDER_DEF;
@@ -376,6 +424,18 @@ static int mlxreg_fan_config(struct mlxreg_fan *fan,
 					data->label);
 				return -EINVAL;
 			}
+
+			if (data->capability) {
+				err = mlxreg_fan_connect_verify(fan, data,
+								&connected);
+				if (err)
+					return err;
+				if (!connected) {
+					tacho_num++;
+					continue;
+				}
+			}
+
 			fan->tacho[tacho_num].reg = data->reg;
 			fan->tacho[tacho_num].mask = data->mask;
 			fan->tacho[tacho_num++].connected = true;
@@ -394,13 +454,19 @@ static int mlxreg_fan_config(struct mlxreg_fan *fan,
 				return -EINVAL;
 			}
 			/* Validate that conf parameters are not zeros. */
-			if (!data->mask || !data->bit) {
+			if (!data->mask || !data->bit || !data->capability) {
 				dev_err(fan->dev, "invalid conf entry params: %s\n",
 					data->label);
 				return -EINVAL;
 			}
-			fan->samples = data->mask;
-			fan->divider = data->bit;
+			if (data->capability) {
+				err = mlxreg_fan_speed_divider_get(fan, data);
+				if (err)
+					return err;
+			} else {
+				fan->samples = data->mask;
+				fan->divider = data->bit;
+			}
 			configured = true;
 		} else {
 			dev_err(fan->dev, "invalid label: %s\n", data->label);

@@ -1,35 +1,7 @@
-/*
- * Copyright (c) 2017 Mellanox Technologies. All rights reserved.
- * Copyright (c) 2017 Vadim Pasternak <vadimp@mellanox.com>
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
- *    contributors may be used to endorse or promote products derived from
- *    this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
+// SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause)
+//
+// Copyright (c) 2018 Mellanox Technologies. All rights reserved.
+// Copyright (c) 2018 Vadim Pasternak <vadimp@mellanox.com>
 
 #include <linux/bitops.h>
 #include <linux/device.h>
@@ -217,6 +189,7 @@ static int mlxreg_led_config(struct mlxreg_led_priv_data *priv)
 	struct mlxreg_led_data *led_data;
 	struct led_classdev *led_cdev;
 	int brightness;
+	u32 regval;
 	int i;
 	int err;
 
@@ -225,6 +198,17 @@ static int mlxreg_led_config(struct mlxreg_led_priv_data *priv)
 					GFP_KERNEL);
 		if (!led_data)
 			return -ENOMEM;
+
+		if (data->capability) {
+			err = regmap_read(led_pdata->regmap, data->capability,
+					  &regval);
+			if (err) {
+				dev_err(&priv->pdev->dev, "Failed to query capability register\n");
+				return err;
+			}
+			if (!(regval & data->bit))
+				continue;
+		}
 
 		led_cdev = &led_data->led_cdev;
 		led_data->data_parent = priv;
@@ -295,16 +279,9 @@ static int mlxreg_led_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id mlxreg_led_dt_match[] = {
-	{ .compatible = "mellanox,leds-mlxreg" },
-	{ },
-};
-MODULE_DEVICE_TABLE(of, mlxreg_led_dt_match);
-
 static struct platform_driver mlxreg_led_driver = {
 	.driver = {
 	    .name = "leds-mlxreg",
-	    .of_match_table = of_match_ptr(mlxreg_led_dt_match),
 	},
 	.probe = mlxreg_led_probe,
 	.remove = mlxreg_led_remove,

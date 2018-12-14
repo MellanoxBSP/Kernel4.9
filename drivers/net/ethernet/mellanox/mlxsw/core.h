@@ -63,6 +63,13 @@ struct mlxsw_driver;
 struct mlxsw_bus;
 struct mlxsw_bus_info;
 
+#define MLXSW_PORT_MAX_PORTS_DEFAULT	0x40
+static inline unsigned int
+mlxsw_core_max_ports(const struct mlxsw_core *mlxsw_core)
+{
+	return MLXSW_PORT_MAX_PORTS_DEFAULT;
+}
+
 void *mlxsw_core_driver_priv(struct mlxsw_core *mlxsw_core);
 
 int mlxsw_core_driver_register(struct mlxsw_driver *mlxsw_driver);
@@ -161,6 +168,8 @@ mlxsw_core_port_driver_priv(struct mlxsw_core_port *mlxsw_core_port)
 	return mlxsw_core_port;
 }
 
+int mlxsw_core_port_get_phys_port_name(struct mlxsw_core *mlxsw_core,
+				       u8 local_port, char *name, size_t len);
 int mlxsw_core_port_init(struct mlxsw_core *mlxsw_core,
 			 struct mlxsw_core_port *mlxsw_core_port, u8 local_port,
 			 struct net_device *dev, bool split, u32 split_group);
@@ -331,6 +340,7 @@ struct mlxsw_bus_info {
 	} fw_rev;
 	u8 vsd[MLXSW_CMD_BOARDINFO_VSD_LEN];
 	u8 psid[MLXSW_CMD_BOARDINFO_PSID_LEN];
+	u8 low_frequency;
 };
 
 struct mlxsw_hwmon;
@@ -349,6 +359,10 @@ static inline int mlxsw_hwmon_init(struct mlxsw_core *mlxsw_core,
 				   struct mlxsw_hwmon **p_hwmon)
 {
 	return 0;
+}
+
+static inline void mlxsw_hwmon_fini(struct mlxsw_hwmon *mlxsw_hwmon)
+{
 }
 
 #endif
