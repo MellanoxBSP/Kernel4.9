@@ -35,6 +35,8 @@
 #define __LINUX_PLATFORM_DATA_MLXREG_H
 
 #define MLXREG_CORE_LABEL_MAX_SIZE	32
+#define MLXREG_CORE_WD_FEATURE_NOSTOP_AFTER_START	BIT(0)
+#define MLXREG_CORE_WD_FEATURE_START_AT_BOOT		BIT(1)
 
 /**
  * struct mlxreg_hotplug_device - I2C device data:
@@ -112,11 +114,15 @@ struct mlxreg_core_item {
  * @data: instance private data;
  * @regmap: register map of parent device;
  * @counter: number of instances;
+ * @features: supported features of device;
+ * @identity: device identity name;
  */
 struct mlxreg_core_platform_data {
 	struct mlxreg_core_data *data;
 	void *regmap;
 	int counter;
+	u32 features;
+	char identity[MLXREG_CORE_LABEL_MAX_SIZE];
 };
 
 /**

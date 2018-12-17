@@ -55,6 +55,14 @@
 #define MLXPLAT_CPLD_LPC_REG_FAN_OFFSET		0x88
 #define MLXPLAT_CPLD_LPC_REG_FAN_EVENT_OFFSET	0x89
 #define MLXPLAT_CPLD_LPC_REG_FAN_MASK_OFFSET	0x8a
+#define MLXPLAT_CPLD_LPC_REG_WD_CLEAR_OFFSET	0xc7
+#define MLXPLAT_CPLD_LPC_REG_WD_CLEAR_WP_OFFSET	0xc8
+#define MLXPLAT_CPLD_LPC_REG_WD1_TMR_OFFSET	0xc9
+#define MLXPLAT_CPLD_LPC_REG_WD1_ACT_OFFSET	0xcb
+#define MLXPLAT_CPLD_LPC_REG_WD2_TMR_OFFSET	0xcd
+#define MLXPLAT_CPLD_LPC_REG_WD2_ACT_OFFSET	0xcf
+#define MLXPLAT_CPLD_LPC_REG_WD3_TMR_OFFSET	0xd1
+#define MLXPLAT_CPLD_LPC_REG_WD3_ACT_OFFSET	0xd2
 #define MLXPLAT_CPLD_LPC_REG_PWM1_OFFSET	0xe3
 #define MLXPLAT_CPLD_LPC_REG_TACHO1_OFFSET	0xe4
 #define MLXPLAT_CPLD_LPC_REG_TACHO2_OFFSET	0xe5
@@ -128,6 +136,18 @@
 #define MLXPLAT_CPLD_FAN3_DEFAULT_NR		13
 #define MLXPLAT_CPLD_FAN4_DEFAULT_NR		14
 
+/* Masks and default values for watchdogs */
+#define MLXPLAT_CPLD_WD1_CLEAR_MASK	GENMASK(7, 1)
+#define MLXPLAT_CPLD_WD2_CLEAR_MASK	(GENMASK(7, 0) & ~BIT(1))
+
+#define MLXPLAT_CPLD_WD_TYPE1_TO_MASK	GENMASK(7, 4)
+#define MLXPLAT_CPLD_WD_TYPE2_TO_MASK	0
+#define MLXPLAT_CPLD_WD_RESET_ACT_MASK	GENMASK(7, 1)
+#define MLXPLAT_CPLD_WD_FAN_ACT_MASK	(GENMASK(7, 0) & ~BIT(4))
+#define MLXPLAT_CPLD_WD_COUNT_ACT_MASK	(GENMASK(7, 0) & ~BIT(7))
+#define MLXPLAT_CPLD_WD_DFLT_TIMEOUT	30
+#define MLXPLAT_CPLD_WD_MAX_DEVS	2
+
 /* mlxplat_priv - platform private data
  * @pdev_i2c - i2c controller platform device
  * @pdev_mux - array of mux platform devices
@@ -135,6 +155,7 @@
  * @pdev_led - led platform devices
  * @pdev_io_regs - register access platform devices
  * @pdev_fan - FAN platform devices
+ * @pdev_wd - array of watchdog platform devices
  */
 struct mlxplat_priv {
 	struct platform_device *pdev_i2c;
@@ -143,6 +164,7 @@ struct mlxplat_priv {
 	struct platform_device *pdev_led;
 	struct platform_device *pdev_io_regs;
 	struct platform_device *pdev_fan;
+	struct platform_device *pdev_wd[MLXPLAT_CPLD_WD_MAX_DEVS];
 };
 
 /* Regions for LPC I2C controller and LPC base register space */
@@ -1340,6 +1362,132 @@ static struct mlxreg_core_platform_data mlxplat_default_fan_data = {
 		.counter = ARRAY_SIZE(mlxplat_mlxcpld_default_fan_data),
 };
 
+/* Type1 watchdog implementation on MSN2700, MSN2100 and MSN2140 systems */
+static struct mlxreg_core_data mlxplat_mlxcpld_wd_main_regs_type1[] = {
+	{
+		.label = "action",
+		.reg = MLXPLAT_CPLD_LPC_REG_WD1_ACT_OFFSET,
+		.mask = MLXPLAT_CPLD_WD_RESET_ACT_MASK,
+		.bit = 0,
+	},
+	{
+		.label = "timeout",
+		.reg = MLXPLAT_CPLD_LPC_REG_WD1_TMR_OFFSET,
+		.mask = MLXPLAT_CPLD_WD_TYPE1_TO_MASK,
+		.health_cntr = MLXPLAT_CPLD_WD_DFLT_TIMEOUT,
+	},
+	{
+		.label = "ping",
+		.reg = MLXPLAT_CPLD_LPC_REG_WD_CLEAR_OFFSET,
+		.mask = MLXPLAT_CPLD_WD1_CLEAR_MASK,
+		.bit = 0,
+	},
+	{
+		.label = "reset",
+		.reg = MLXPLAT_CPLD_LPC_REG_RESET_CAUSE_OFFSET,
+		.mask = GENMASK(7, 0) & ~BIT(6),
+		.bit = 6,
+	},
+};
+
+static struct mlxreg_core_data mlxplat_mlxcpld_wd_aux_regs_type1[] = {
+	{
+		.label = "action",
+		.reg = MLXPLAT_CPLD_LPC_REG_WD2_ACT_OFFSET,
+		.mask = MLXPLAT_CPLD_WD_FAN_ACT_MASK,
+		.bit = 4,
+	},
+	{
+		.label = "timeout",
+		.reg = MLXPLAT_CPLD_LPC_REG_WD2_TMR_OFFSET,
+		.mask = MLXPLAT_CPLD_WD_TYPE1_TO_MASK,
+		.health_cntr = MLXPLAT_CPLD_WD_DFLT_TIMEOUT,
+	},
+	{
+		.label = "ping",
+		.reg = MLXPLAT_CPLD_LPC_REG_WD_CLEAR_OFFSET,
+		.mask = MLXPLAT_CPLD_WD1_CLEAR_MASK,
+		.bit = 1,
+	},
+};
+
+static struct mlxreg_core_platform_data mlxplat_mlxcpld_wd_set_type1[] = {
+	{
+		.data = mlxplat_mlxcpld_wd_main_regs_type1,
+		.counter = ARRAY_SIZE(mlxplat_mlxcpld_wd_main_regs_type1),
+		.identity = "mlx-wdt-main",
+	},
+	{
+		.data = mlxplat_mlxcpld_wd_aux_regs_type1,
+		.counter = ARRAY_SIZE(mlxplat_mlxcpld_wd_aux_regs_type1),
+		.identity = "mlx-wdt-aux",
+	},
+};
+
+/* Type2 watchdog implementation on MSB8700 and up systems
+ * To differentiate: ping reg == action reg
+ */
+static struct mlxreg_core_data mlxplat_mlxcpld_wd_main_regs_type2[] = {
+	{
+		.label = "action",
+		.reg = MLXPLAT_CPLD_LPC_REG_WD2_ACT_OFFSET,
+		.mask = MLXPLAT_CPLD_WD_RESET_ACT_MASK,
+		.bit = 0,
+	},
+	{
+		.label = "timeout",
+		.reg = MLXPLAT_CPLD_LPC_REG_WD2_TMR_OFFSET,
+		.mask = MLXPLAT_CPLD_WD_TYPE2_TO_MASK,
+		.health_cntr = MLXPLAT_CPLD_WD_DFLT_TIMEOUT,
+	},
+	{
+		.label = "ping",
+		.reg = MLXPLAT_CPLD_LPC_REG_WD2_ACT_OFFSET,
+		.mask = MLXPLAT_CPLD_WD_RESET_ACT_MASK,
+		.bit = 0,
+	},
+	{
+		.label = "reset",
+		.reg = MLXPLAT_CPLD_LPC_REG_RESET_CAUSE_OFFSET,
+		.mask = GENMASK(7, 0) & ~BIT(6),
+		.bit = 6,
+	},
+};
+
+static struct mlxreg_core_data mlxplat_mlxcpld_wd_aux_regs_type2[] = {
+	{
+		.label = "action",
+		.reg = MLXPLAT_CPLD_LPC_REG_WD3_ACT_OFFSET,
+		.mask = MLXPLAT_CPLD_WD_FAN_ACT_MASK,
+		.bit = 4,
+	},
+	{
+		.label = "timeout",
+		.reg = MLXPLAT_CPLD_LPC_REG_WD3_TMR_OFFSET,
+		.mask = MLXPLAT_CPLD_WD_TYPE2_TO_MASK,
+		.health_cntr = MLXPLAT_CPLD_WD_DFLT_TIMEOUT,
+	},
+	{
+		.label = "ping",
+		.reg = MLXPLAT_CPLD_LPC_REG_WD3_ACT_OFFSET,
+		.mask = MLXPLAT_CPLD_WD_FAN_ACT_MASK,
+		.bit = 4,
+	},
+};
+
+static struct mlxreg_core_platform_data mlxplat_mlxcpld_wd_set_type2[] = {
+	{
+		.data = mlxplat_mlxcpld_wd_main_regs_type2,
+		.counter = ARRAY_SIZE(mlxplat_mlxcpld_wd_main_regs_type2),
+		.identity = "mlx-wdt-main",
+	},
+	{
+		.data = mlxplat_mlxcpld_wd_aux_regs_type2,
+		.counter = ARRAY_SIZE(mlxplat_mlxcpld_wd_aux_regs_type2),
+		.identity = "mlx-wdt-aux",
+	},
+};
+
 static bool mlxplat_mlxcpld_writeable_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
@@ -1362,6 +1510,14 @@ static bool mlxplat_mlxcpld_writeable_reg(struct device *dev, unsigned int reg)
 	case MLXPLAT_CPLD_LPC_REG_PWR_MASK_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_FAN_EVENT_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_FAN_MASK_OFFSET:
+	case MLXPLAT_CPLD_LPC_REG_WD_CLEAR_OFFSET:
+	case MLXPLAT_CPLD_LPC_REG_WD_CLEAR_WP_OFFSET:
+	case MLXPLAT_CPLD_LPC_REG_WD1_TMR_OFFSET:
+	case MLXPLAT_CPLD_LPC_REG_WD1_ACT_OFFSET:
+	case MLXPLAT_CPLD_LPC_REG_WD2_TMR_OFFSET:
+	case MLXPLAT_CPLD_LPC_REG_WD2_ACT_OFFSET:
+	case MLXPLAT_CPLD_LPC_REG_WD3_TMR_OFFSET:
+	case MLXPLAT_CPLD_LPC_REG_WD3_ACT_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_PWM1_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_PWM_CONTROL_OFFSET:
 		return true;
@@ -1404,6 +1560,14 @@ static bool mlxplat_mlxcpld_readable_reg(struct device *dev, unsigned int reg)
 	case MLXPLAT_CPLD_LPC_REG_FAN_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_FAN_EVENT_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_FAN_MASK_OFFSET:
+	case MLXPLAT_CPLD_LPC_REG_WD_CLEAR_OFFSET:
+	case MLXPLAT_CPLD_LPC_REG_WD_CLEAR_WP_OFFSET:
+	case MLXPLAT_CPLD_LPC_REG_WD1_TMR_OFFSET:
+	case MLXPLAT_CPLD_LPC_REG_WD1_ACT_OFFSET:
+	case MLXPLAT_CPLD_LPC_REG_WD2_TMR_OFFSET:
+	case MLXPLAT_CPLD_LPC_REG_WD2_ACT_OFFSET:
+	case MLXPLAT_CPLD_LPC_REG_WD3_TMR_OFFSET:
+	case MLXPLAT_CPLD_LPC_REG_WD3_ACT_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_PWM1_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_TACHO1_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_TACHO2_OFFSET:
@@ -1460,6 +1624,8 @@ static bool mlxplat_mlxcpld_volatile_reg(struct device *dev, unsigned int reg)
 	case MLXPLAT_CPLD_LPC_REG_FAN_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_FAN_EVENT_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_FAN_MASK_OFFSET:
+	case MLXPLAT_CPLD_LPC_REG_WD2_TMR_OFFSET:
+	case MLXPLAT_CPLD_LPC_REG_WD3_TMR_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_PWM1_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_TACHO1_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_TACHO2_OFFSET:
@@ -1487,6 +1653,7 @@ static const struct reg_default mlxplat_mlxcpld_regmap_default[] = {
 	{ MLXPLAT_CPLD_LPC_REG_WP1_OFFSET, 0x00 },
 	{ MLXPLAT_CPLD_LPC_REG_WP2_OFFSET, 0x00 },
 	{ MLXPLAT_CPLD_LPC_REG_PWM_CONTROL_OFFSET, 0x00 },
+	{ MLXPLAT_CPLD_LPC_REG_WD_CLEAR_WP_OFFSET, 0x00 },
 };
 
 struct mlxplat_mlxcpld_regmap_context {
@@ -1536,6 +1703,8 @@ static struct mlxreg_core_hotplug_platform_data *mlxplat_hotplug;
 static struct mlxreg_core_platform_data *mlxplat_led;
 static struct mlxreg_core_platform_data *mlxplat_regs_io;
 static struct mlxreg_core_platform_data *mlxplat_fan;
+static struct mlxreg_core_platform_data
+	*mlxplat_wd_data[MLXPLAT_CPLD_WD_MAX_DEVS];
 
 static int __init mlxplat_dmi_default_matched(const struct dmi_system_id *dmi)
 {
@@ -1551,6 +1720,7 @@ static int __init mlxplat_dmi_default_matched(const struct dmi_system_id *dmi)
 		mlxplat_default_channels[i - 1][MLXPLAT_CPLD_GRP_CHNL_NUM - 1];
 	mlxplat_led = &mlxplat_default_led_data;
 	mlxplat_regs_io = &mlxplat_default_regs_io_data;
+	mlxplat_wd_data[0] = &mlxplat_mlxcpld_wd_set_type1[0];
 
 	return 1;
 };
@@ -1569,6 +1739,7 @@ static int __init mlxplat_dmi_msn21xx_matched(const struct dmi_system_id *dmi)
 		mlxplat_msn21xx_channels[MLXPLAT_CPLD_GRP_CHNL_NUM - 1];
 	mlxplat_led = &mlxplat_msn21xx_led_data;
 	mlxplat_regs_io = &mlxplat_msn21xx_regs_io_data;
+	mlxplat_wd_data[0] = &mlxplat_mlxcpld_wd_set_type1[0];
 
 	return 1;
 };
@@ -1587,6 +1758,7 @@ static int __init mlxplat_dmi_msn274x_matched(const struct dmi_system_id *dmi)
 		mlxplat_msn21xx_channels[MLXPLAT_CPLD_GRP_CHNL_NUM - 1];
 	mlxplat_led = &mlxplat_default_led_data;
 	mlxplat_regs_io = &mlxplat_msn21xx_regs_io_data;
+	mlxplat_wd_data[0] = &mlxplat_mlxcpld_wd_set_type1[0];
 
 	return 1;
 };
@@ -1605,6 +1777,7 @@ static int __init mlxplat_dmi_msn201x_matched(const struct dmi_system_id *dmi)
 		mlxplat_default_channels[i - 1][MLXPLAT_CPLD_GRP_CHNL_NUM - 1];
 	mlxplat_led = &mlxplat_msn21xx_led_data;
 	mlxplat_regs_io = &mlxplat_msn21xx_regs_io_data;
+	mlxplat_wd_data[0] = &mlxplat_mlxcpld_wd_set_type1[0];
 
 	return 1;
 };
@@ -1624,6 +1797,8 @@ static int __init mlxplat_dmi_qmb7xx_matched(const struct dmi_system_id *dmi)
 	mlxplat_led = &mlxplat_default_ng_led_data;
 	mlxplat_regs_io = &mlxplat_default_ng_regs_io_data;
 	mlxplat_fan = &mlxplat_default_fan_data;
+	for (i = 0; i < ARRAY_SIZE(mlxplat_mlxcpld_wd_set_type2); i++)
+		mlxplat_wd_data[i] = &mlxplat_mlxcpld_wd_set_type2[i];
 
 	return 1;
 };
@@ -1906,15 +2081,33 @@ static int __init mlxplat_init(void)
 		}
 	}
 
+	/* Add WD drivers. */
+	for (j = 0; j < MLXPLAT_CPLD_WD_MAX_DEVS; j++) {
+		if (mlxplat_wd_data[j]) {
+			mlxplat_wd_data[j]->regmap = mlxplat_hotplug->regmap;
+			priv->pdev_wd[j] = platform_device_register_resndata(
+						&mlxplat_dev->dev,
+						"mlx-wdt", j, NULL, 0,
+						mlxplat_wd_data[j],
+						sizeof(*mlxplat_wd_data[j]));
+			if (IS_ERR(priv->pdev_wd[j])) {
+				err = PTR_ERR(priv->pdev_wd[j]);
+				goto fail_platform_wd_register;
+			}
+		}
+	}
+
 	/* Sync registers with hardware. */
 	regcache_mark_dirty(mlxplat_hotplug->regmap);
 	err = regcache_sync(mlxplat_hotplug->regmap);
 	if (err)
-		goto fail_platform_fan_register;
+		goto fail_platform_wd_register;
 
 	return 0;
 
-fail_platform_fan_register:
+fail_platform_wd_register:
+	while (--j >= 0)
+		platform_device_unregister(priv->pdev_wd[j]);
 	if (mlxplat_fan)
 		platform_device_unregister(priv->pdev_fan);
 fail_platform_io_regs_register:
@@ -1946,7 +2139,10 @@ static void __exit mlxplat_exit(void)
 		platform_device_unregister(priv->pdev_io_regs);
 	platform_device_unregister(priv->pdev_led);
 	platform_device_unregister(priv->pdev_hotplug);
-
+	for (i = MLXPLAT_CPLD_WD_MAX_DEVS - 1; i >= 0 ; i--) {
+		if (mlxplat_wd_data[i])
+			platform_device_unregister(priv->pdev_wd[i]);
+	}
 	for (i = ARRAY_SIZE(mlxplat_mux_data) - 1; i >= 0 ; i--)
 		platform_device_unregister(priv->pdev_mux[i]);
 
