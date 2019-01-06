@@ -63,13 +63,9 @@ struct mlxsw_driver;
 struct mlxsw_bus;
 struct mlxsw_bus_info;
 
-#define MLXSW_PORT_MAX_PORTS_DEFAULT	0x40
-static inline unsigned int
-mlxsw_core_max_ports(const struct mlxsw_core *mlxsw_core)
-{
-	return MLXSW_PORT_MAX_PORTS_DEFAULT;
-}
-
+unsigned int mlxsw_core_max_ports(const struct mlxsw_core *mlxsw_core);
+void mlxsw_core_max_ports_set(struct mlxsw_core *mlxsw_core,
+			      unsigned int max_ports);
 void *mlxsw_core_driver_priv(struct mlxsw_core *mlxsw_core);
 
 int mlxsw_core_driver_register(struct mlxsw_driver *mlxsw_driver);

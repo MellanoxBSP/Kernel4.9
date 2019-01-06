@@ -114,11 +114,29 @@ struct mlxsw_core {
 	struct mlxsw_resources resources;
 	struct mlxsw_hwmon *hwmon;
 	struct mlxsw_thermal *thermal;
-struct mlxsw_qsfp *qsfp;
+	struct mlxsw_qsfp *qsfp;
 	struct mlxsw_core_port ports[MLXSW_PORT_MAX_PORTS];
+	unsigned int max_ports;
 	unsigned long driver_priv[0];
 	/* driver_priv has to be always the last item */
 };
+
+#define MLXSW_PORT_MAX_PORTS_DEFAULT	0x40
+unsigned int mlxsw_core_max_ports(const struct mlxsw_core *mlxsw_core)
+{
+	if (mlxsw_core->max_ports)
+		return mlxsw_core->max_ports;
+	else
+		return MLXSW_PORT_MAX_PORTS_DEFAULT;
+}
+EXPORT_SYMBOL(mlxsw_core_max_ports);
+
+void mlxsw_core_max_ports_set(struct mlxsw_core *mlxsw_core,
+			      unsigned int max_ports)
+{
+	mlxsw_core->max_ports = max_ports;
+}
+EXPORT_SYMBOL(mlxsw_core_max_ports_set);
 
 void *mlxsw_core_driver_priv(struct mlxsw_core *mlxsw_core)
 {
