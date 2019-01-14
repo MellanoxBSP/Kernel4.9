@@ -8,6 +8,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
+#include <net/switchdev.h>
 #include <linux/types.h>
 
 #include "core.h"
@@ -19,16 +20,15 @@ static const char mlxsw_m_driver_name[] = "mlxsw_minimal";
 struct mlxsw_m_port;
 
 struct mlxsw_m {
-	struct mlxsw_m_port **modules;
+	struct mlxsw_m_port **ports;
 	int *module_to_port;
 	struct mlxsw_core *core;
 	const struct mlxsw_bus_info *bus_info;
 	u8 base_mac[ETH_ALEN];
-	u8 max_modules;
+	u8 max_ports;
 };
 
 struct mlxsw_m_port {
-	struct mlxsw_core_port core_port; /* must be first */
 	struct net_device *dev;
 	struct mlxsw_m *mlxsw_m;
 	u8 local_port;
@@ -114,12 +114,27 @@ mlxsw_m_port_dev_addr_get(struct mlxsw_m_port *mlxsw_m_port)
 	return 0;
 }
 
+static void mlxsw_m_port_switchdev_init(struct mlxsw_m_port *mlxsw_m_port)
+{
+}
+
+static void mlxsw_m_port_switchdev_fini(struct mlxsw_m_port *mlxsw_m_port)
+{
+}
+
 static int
 mlxsw_m_port_create(struct mlxsw_m *mlxsw_m, u8 local_port, u8 module)
 {
 	struct mlxsw_m_port *mlxsw_m_port;
 	struct net_device *dev;
 	int err;
+
+	err = mlxsw_core_port_init(mlxsw_m->core, local_port);
+	if (err) {
+		dev_err(mlxsw_m->bus_info->dev, "Port %d: Failed to init core port\n",
+			local_port);
+		return err;
+	}
 
 	dev = alloc_etherdev(sizeof(struct mlxsw_m_port));
 	if (!dev) {
@@ -134,19 +149,8 @@ mlxsw_m_port_create(struct mlxsw_m *mlxsw_m, u8 local_port, u8 module)
 	mlxsw_m_port->local_port = local_port;
 	mlxsw_m_port->module = module;
 
-	mlxsw_m->modules[local_port] = mlxsw_m_port;
-
 	dev->netdev_ops = &mlxsw_m_port_netdev_ops;
 	dev->ethtool_ops = &mlxsw_m_port_ethtool_ops;
-
-	err = mlxsw_core_port_init(mlxsw_m->core,
-				   &mlxsw_m_port->core_port, local_port,
-				   dev, false, module);
-	if (err) {
-		dev_err(mlxsw_m->bus_info->dev, "Port %d: Failed to init core port\n",
-			local_port);
-		goto err_alloc_etherdev;
-	}
 
 	err = mlxsw_m_port_dev_addr_get(mlxsw_m_port);
 	if (err) {
@@ -156,7 +160,8 @@ mlxsw_m_port_create(struct mlxsw_m *mlxsw_m, u8 local_port, u8 module)
 	}
 
 	netif_carrier_off(dev);
-
+	mlxsw_m_port_switchdev_init(mlxsw_m_port);
+	mlxsw_m->ports[local_port] = mlxsw_m_port;
 	err = register_netdev(dev);
 	if (err) {
 		dev_err(mlxsw_m->bus_info->dev, "Port %d: Failed to register netdev\n",
@@ -167,38 +172,29 @@ mlxsw_m_port_create(struct mlxsw_m *mlxsw_m, u8 local_port, u8 module)
 	return 0;
 
 err_register_netdev:
+	mlxsw_m->ports[local_port] = NULL;
+	mlxsw_m_port_switchdev_fini(mlxsw_m_port);
 	free_netdev(dev);
 err_dev_addr_get:
 err_alloc_etherdev:
-	mlxsw_m->modules[local_port] = NULL;
+	mlxsw_core_port_fini(mlxsw_m->core, local_port);
 	return err;
 }
 
 static void mlxsw_m_port_remove(struct mlxsw_m *mlxsw_m, u8 local_port)
 {
-	struct mlxsw_m_port *mlxsw_m_port = mlxsw_m->modules[local_port];
+	struct mlxsw_m_port *mlxsw_m_port = mlxsw_m->ports[local_port];
 
+	mlxsw_core_port_clear(mlxsw_m->core, local_port, mlxsw_m);
 	unregister_netdev(mlxsw_m_port->dev); /* This calls ndo_stop */
+	mlxsw_m->ports[local_port] = NULL;
+	mlxsw_m_port_switchdev_fini(mlxsw_m_port);
 	free_netdev(mlxsw_m_port->dev);
-	mlxsw_core_port_fini(&mlxsw_m_port->core_port);
+	mlxsw_core_port_fini(mlxsw_m->core, local_port);
 }
 
-static void mlxsw_m_ports_remove(struct mlxsw_m *mlxsw_m)
-{
-	int i;
-
-	for (i = 0; i < mlxsw_m->max_modules; i++) {
-		if (mlxsw_m->module_to_port[i] > 0)
-			mlxsw_m_port_remove(mlxsw_m,
-					    mlxsw_m->module_to_port[i]);
-	}
-
-	kfree(mlxsw_m->module_to_port);
-	kfree(mlxsw_m->modules);
-}
-
-static int mlxsw_m_port_mapping_create(struct mlxsw_m *mlxsw_m, u8 local_port,
-				       u8 *last_module)
+static int mlxsw_m_port_module_map(struct mlxsw_m *mlxsw_m, u8 local_port,
+				   u8 *last_module)
 {
 	u8 module, width;
 	int err;
@@ -215,9 +211,32 @@ static int mlxsw_m_port_mapping_create(struct mlxsw_m *mlxsw_m, u8 local_port,
 	if (module == *last_module)
 		return 0;
 	*last_module = module;
-	mlxsw_m->module_to_port[module] = ++mlxsw_m->max_modules;
+	mlxsw_m->module_to_port[module] = ++mlxsw_m->max_ports;
 
 	return 0;
+}
+
+static int mlxsw_m_port_module_unmap(struct mlxsw_m *mlxsw_m, u8 module)
+{
+	mlxsw_m->module_to_port[module] = -1;
+
+	return 0;
+}
+
+static void mlxsw_m_ports_remove(struct mlxsw_m *mlxsw_m)
+{
+	int i;
+
+	for (i = 0; i < mlxsw_m->max_ports; i++) {
+		if (mlxsw_m->module_to_port[i] > 0) {
+			mlxsw_m_port_remove(mlxsw_m,
+					    mlxsw_m->module_to_port[i]);
+			mlxsw_m_port_module_unmap(mlxsw_m, i);
+		}
+	}
+
+	kfree(mlxsw_m->module_to_port);
+	kfree(mlxsw_m->ports);
 }
 
 static int mlxsw_m_ports_create(struct mlxsw_m *mlxsw_m)
@@ -227,9 +246,9 @@ static int mlxsw_m_ports_create(struct mlxsw_m *mlxsw_m)
 	int i;
 	int err;
 
-	mlxsw_m->modules = kcalloc(max_port, sizeof(*mlxsw_m->modules),
-				   GFP_KERNEL);
-	if (!mlxsw_m->modules)
+	mlxsw_m->ports = kcalloc(max_port, sizeof(*mlxsw_m->ports),
+				 GFP_KERNEL);
+	if (!mlxsw_m->ports)
 		return -ENOMEM;
 
 	mlxsw_m->module_to_port = kmalloc_array(max_port, sizeof(int),
@@ -244,14 +263,14 @@ static int mlxsw_m_ports_create(struct mlxsw_m *mlxsw_m)
 		mlxsw_m->module_to_port[i] = -1;
 
 	/* Fill out module to local port mapping array */
-	for (i = 1; i <= max_port; i++) {
-		err = mlxsw_m_port_mapping_create(mlxsw_m, i, &last_module);
+	for (i = 1; i < max_port; i++) {
+		err = mlxsw_m_port_module_map(mlxsw_m, i, &last_module);
 		if (err)
 			goto err_port_create;
 	}
 
 	/* Create port objects for each valid entry */
-	for (i = 0; i < mlxsw_m->max_modules; i++) {
+	for (i = 0; i < mlxsw_m->max_ports; i++) {
 		if (mlxsw_m->module_to_port[i] > 0) {
 			err = mlxsw_m_port_create(mlxsw_m,
 						  mlxsw_m->module_to_port[i],
@@ -279,7 +298,7 @@ static int mlxsw_m_init(struct mlxsw_core *mlxsw_core,
 
 	err = mlxsw_m_ports_create(mlxsw_m);
 	if (err) {
-		dev_err(mlxsw_m->bus_info->dev, "Failed to create modules\n");
+		dev_err(mlxsw_m->bus_info->dev, "Failed to create ports\n");
 		return err;
 	}
 
@@ -296,11 +315,12 @@ static void mlxsw_m_fini(struct mlxsw_core *mlxsw_core)
 static const struct mlxsw_config_profile mlxsw_m_config_profile;
 
 static struct mlxsw_driver mlxsw_m_driver = {
-	.kind		= mlxsw_m_driver_name,
-	.priv_size	= sizeof(struct mlxsw_m),
-	.init		= mlxsw_m_init,
-	.fini		= mlxsw_m_fini,
-	.profile	= &mlxsw_m_config_profile,
+	.kind			= mlxsw_m_driver_name,
+	.priv_size		= sizeof(struct mlxsw_m),
+	.init			= mlxsw_m_init,
+	.fini			= mlxsw_m_fini,
+	.profile		= &mlxsw_m_config_profile,
+	.res_query_enabled	= true,
 };
 
 static const struct i2c_device_id mlxsw_m_i2c_id[] = {
