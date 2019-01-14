@@ -873,7 +873,7 @@ mlxsw_thermal_module_tz_init(struct mlxsw_thermal_module *module_tz)
 						  &mlxsw_thermal_module_params,
 						  0, 0);
 	if (IS_ERR(module_tz->tzdev)) {
-		err = PTR_ERR(module_tz);
+		err = PTR_ERR(module_tz->tzdev);
 		return err;
 	}
 
@@ -942,7 +942,7 @@ mlxsw_thermal_modules_init(struct device *dev, struct mlxsw_core *core,
 	if (!thermal->tz_module_arr)
 		return -ENOMEM;
 
-	for (i = 1; i <= module_count; i++) {
+	for (i = 1; i < module_count; i++) {
 		err = mlxsw_thermal_module_init(dev, core, thermal, i);
 		if (err)
 			goto err_unreg_tz_module_arr;
@@ -957,7 +957,7 @@ mlxsw_thermal_modules_init(struct device *dev, struct mlxsw_core *core,
 	return 0;
 
 err_unreg_tz_module_arr:
-	for (i = thermal->tz_module_num - 1; i >= 0; i--)
+	for (i = module_count - 1; i >= 0; i--)
 		mlxsw_thermal_module_fini(&thermal->tz_module_arr[i]);
 	kfree(thermal->tz_module_arr);
 	return err;
@@ -966,9 +966,10 @@ err_unreg_tz_module_arr:
 static void
 mlxsw_thermal_modules_fini(struct mlxsw_thermal *thermal)
 {
+	unsigned int module_count = mlxsw_core_max_ports(thermal->core);
 	int i;
 
-	for (i = thermal->tz_module_num - 1; i >= 0; i--)
+	for (i = module_count - 1; i >= 0; i--)
 		mlxsw_thermal_module_fini(&thermal->tz_module_arr[i]);
 	kfree(thermal->tz_module_arr);
 }

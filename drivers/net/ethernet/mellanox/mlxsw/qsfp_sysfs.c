@@ -298,7 +298,6 @@ int mlxsw_qsfp_init(struct mlxsw_core *mlxsw_core,
 	mlxsw_qsfp->bus_info = mlxsw_bus_info;
 	mlxsw_bus_info->dev->platform_data = mlxsw_qsfp;
 
-	mlxsw_core_max_ports_set(mlxsw_core, mlxsw_qsfp_num);
 	for (i = 1; i <= mlxsw_qsfp_num; i++) {
 		mlxsw_reg_pmlp_pack(pmlp_pl, i);
 		err = mlxsw_reg_query(mlxsw_qsfp->core, MLXSW_REG(pmlp),
