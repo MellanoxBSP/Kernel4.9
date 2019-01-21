@@ -433,7 +433,7 @@ static int mlxsw_thermal_get_temp(struct thermal_zone_device *tzdev,
 		return err;
 	}
 	mlxsw_reg_mtmp_unpack(mtmp_pl, &temp, NULL, NULL);
-
+#if 0
 	if (thermal->tz_module_arr) {
 		err = mlxsw_thermal_highest_tz_notify(dev, tzdev, thermal,
 						      thermal->tz_module_num,
@@ -441,7 +441,7 @@ static int mlxsw_thermal_get_temp(struct thermal_zone_device *tzdev,
 		if (err)
 			dev_err(dev, "Failed to query module temp sensor\n");
 	}
-
+#endif
 	*p_temp = (int) temp;
 	return 0;
 }
