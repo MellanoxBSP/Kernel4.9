@@ -399,7 +399,10 @@ mlxsw_i2c_cmd(struct device *dev, u16 opcode, u32 in_mod, size_t in_mbox_size,
 		if (reg_size % MLXSW_I2C_BLK_MAX)
 			num++;
 
-		mutex_lock(&mlxsw_i2c->cmd.lock);
+		if (mutex_lock_interruptible(&mlxsw_i2c->cmd.lock) < 0) {
+			dev_err(&client->dev, "Could not acquire lock");
+			return -EINVAL;
+		}
 
 		err = mlxsw_i2c_write(dev, reg_size, in_mbox, num, status);
 		if (err)
@@ -415,7 +418,10 @@ mlxsw_i2c_cmd(struct device *dev, u16 opcode, u32 in_mod, size_t in_mbox_size,
 		reg_size = MLXSW_I2C_MAX_DATA_SIZE;
 		num = reg_size / MLXSW_I2C_BLK_MAX;
 
-		mutex_lock(&mlxsw_i2c->cmd.lock);
+		if (mutex_lock_interruptible(&mlxsw_i2c->cmd.lock) < 0) {
+			dev_err(&client->dev, "Could not acquire lock");
+			return -EINVAL;
+		}
 
 		err = mlxsw_i2c_write_init_cmd(client, mlxsw_i2c, opcode,
 					       in_mod);

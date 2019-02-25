@@ -22,6 +22,7 @@
 #define MLXREG_LED_AMBER_SOLID		0x09 /* Solid amber */
 #define MLXREG_LED_BLINK_3HZ		167 /* ~167 msec off/on - HW support */
 #define MLXREG_LED_BLINK_6HZ		83 /* ~83 msec off/on - HW support */
+#define MLXREG_LED_CAPABILITY_CLEAR	GENMASK(31, 8) /* Clear mask */
 
 /**
  * struct mlxreg_led_data - led control data:
@@ -100,7 +101,7 @@ mlxreg_led_get_hw(struct mlxreg_led_data *led_data)
 	struct mlxreg_core_platform_data *led_pdata = priv->pdata;
 	struct mlxreg_core_data *data = led_data->data;
 	u32 regval;
-	int ret;
+	int err;
 
 	/*
 	 * Each LED is controlled through low or high nibble of the relevant
@@ -112,10 +113,10 @@ mlxreg_led_get_hw(struct mlxreg_led_data *led_data)
 	 * 0xf0 - lower nibble is to be used (bits from 0 to 3), mask 0x0f -
 	 * higher nibble (bits from 4 to 7).
 	 */
-	ret = regmap_read(led_pdata->regmap, data->reg, &regval);
-	if (ret < 0) {
+	err = regmap_read(led_pdata->regmap, data->reg, &regval);
+	if (err < 0) {
 		dev_warn(led_data->led_cdev.dev, "Failed to get current brightness, error: %d\n",
-			 ret);
+			 err);
 		/* Assume the LED is OFF */
 		return LED_OFF;
 	}
@@ -125,11 +126,9 @@ mlxreg_led_get_hw(struct mlxreg_led_data *led_data)
 		 data->bit) : ror32(regval, data->bit + 4);
 	if (regval >= led_data->base_color &&
 	    regval <= (led_data->base_color + MLXREG_LED_OFFSET_BLINK_6HZ))
-		ret = LED_FULL;
-	else
-		ret = LED_OFF;
+		return LED_FULL;
 
-	return ret;
+	return LED_OFF;
 }
 
 static int
@@ -208,6 +207,12 @@ static int mlxreg_led_config(struct mlxreg_led_priv_data *priv)
 			}
 			if (!(regval & data->bit))
 				continue;
+			/*
+			 * Field "bit" can contain one capability bit in 0 byte
+			 * and offset bit in 1-3 bytes. Clear capability bit and
+			 * keep only offset bit.
+			 */
+			data->bit &= MLXREG_LED_CAPABILITY_CLEAR;
 		}
 
 		led_cdev = &led_data->led_cdev;
