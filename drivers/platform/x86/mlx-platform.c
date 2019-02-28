@@ -61,9 +61,11 @@
 #define MLXPLAT_CPLD_LPC_REG_WD1_TMR_OFFSET	0xc9
 #define MLXPLAT_CPLD_LPC_REG_WD1_ACT_OFFSET	0xcb
 #define MLXPLAT_CPLD_LPC_REG_WD2_TMR_OFFSET	0xcd
+#define MLXPLAT_CPLD_LPC_REG_WD2_TLEFT_OFFSET	0xce
 #define MLXPLAT_CPLD_LPC_REG_WD2_ACT_OFFSET	0xcf
 #define MLXPLAT_CPLD_LPC_REG_WD3_TMR_OFFSET	0xd1
-#define MLXPLAT_CPLD_LPC_REG_WD3_ACT_OFFSET	0xd2
+#define MLXPLAT_CPLD_LPC_REG_WD3_TLEFT_OFFSET	0xd2
+#define MLXPLAT_CPLD_LPC_REG_WD3_ACT_OFFSET	0xd3
 #define MLXPLAT_CPLD_LPC_REG_PWM1_OFFSET	0xe3
 #define MLXPLAT_CPLD_LPC_REG_TACHO1_OFFSET	0xe4
 #define MLXPLAT_CPLD_LPC_REG_TACHO2_OFFSET	0xe5
@@ -1369,7 +1371,9 @@ static struct mlxreg_core_platform_data mlxplat_default_fan_data = {
 		.counter = ARRAY_SIZE(mlxplat_mlxcpld_default_fan_data),
 };
 
-/* Type1 watchdog implementation on MSN2700, MSN2100 and MSN2140 systems */
+/* Watchdog type1: hardware implementation version1
+ * (MSN2700, MSN2410, MSN2740, MSN2100 and MSN2140 systems).
+ */
 static struct mlxreg_core_data mlxplat_mlxcpld_wd_main_regs_type1[] = {
 	{
 		.label = "action",
@@ -1422,17 +1426,19 @@ static struct mlxreg_core_platform_data mlxplat_mlxcpld_wd_set_type1[] = {
 	{
 		.data = mlxplat_mlxcpld_wd_main_regs_type1,
 		.counter = ARRAY_SIZE(mlxplat_mlxcpld_wd_main_regs_type1),
+		.version = MLX_WDT_TYPE1,
 		.identity = "mlx-wdt-main",
 	},
 	{
 		.data = mlxplat_mlxcpld_wd_aux_regs_type1,
 		.counter = ARRAY_SIZE(mlxplat_mlxcpld_wd_aux_regs_type1),
+		.version = MLX_WDT_TYPE1,
 		.identity = "mlx-wdt-aux",
 	},
 };
 
-/* Type2 watchdog implementation on MSB8700 and up systems
- * To differentiate: ping reg == action reg
+/* Watchdog type2: hardware implementation version 2
+ * (all systems except (MSN2700, MSN2410, MSN2740, MSN2100 and MSN2140).
  */
 static struct mlxreg_core_data mlxplat_mlxcpld_wd_main_regs_type2[] = {
 	{
@@ -1446,6 +1452,11 @@ static struct mlxreg_core_data mlxplat_mlxcpld_wd_main_regs_type2[] = {
 		.reg = MLXPLAT_CPLD_LPC_REG_WD2_TMR_OFFSET,
 		.mask = MLXPLAT_CPLD_WD_TYPE2_TO_MASK,
 		.health_cntr = MLXPLAT_CPLD_WD_DFLT_TIMEOUT,
+	},
+	{
+		.label = "timeleft",
+		.reg = MLXPLAT_CPLD_LPC_REG_WD2_TLEFT_OFFSET,
+		.mask = MLXPLAT_CPLD_WD_TYPE2_TO_MASK,
 	},
 	{
 		.label = "ping",
@@ -1475,6 +1486,11 @@ static struct mlxreg_core_data mlxplat_mlxcpld_wd_aux_regs_type2[] = {
 		.health_cntr = MLXPLAT_CPLD_WD_DFLT_TIMEOUT,
 	},
 	{
+		.label = "timeleft",
+		.reg = MLXPLAT_CPLD_LPC_REG_WD3_TLEFT_OFFSET,
+		.mask = MLXPLAT_CPLD_WD_TYPE2_TO_MASK,
+	},
+	{
 		.label = "ping",
 		.reg = MLXPLAT_CPLD_LPC_REG_WD3_ACT_OFFSET,
 		.mask = MLXPLAT_CPLD_WD_FAN_ACT_MASK,
@@ -1486,11 +1502,13 @@ static struct mlxreg_core_platform_data mlxplat_mlxcpld_wd_set_type2[] = {
 	{
 		.data = mlxplat_mlxcpld_wd_main_regs_type2,
 		.counter = ARRAY_SIZE(mlxplat_mlxcpld_wd_main_regs_type2),
+		.version = MLX_WDT_TYPE2,
 		.identity = "mlx-wdt-main",
 	},
 	{
 		.data = mlxplat_mlxcpld_wd_aux_regs_type2,
 		.counter = ARRAY_SIZE(mlxplat_mlxcpld_wd_aux_regs_type2),
+		.version = MLX_WDT_TYPE2,
 		.identity = "mlx-wdt-aux",
 	},
 };
@@ -1573,8 +1591,10 @@ static bool mlxplat_mlxcpld_readable_reg(struct device *dev, unsigned int reg)
 	case MLXPLAT_CPLD_LPC_REG_WD1_TMR_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_WD1_ACT_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_WD2_TMR_OFFSET:
+	case MLXPLAT_CPLD_LPC_REG_WD2_TLEFT_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_WD2_ACT_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_WD3_TMR_OFFSET:
+	case MLXPLAT_CPLD_LPC_REG_WD3_TLEFT_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_WD3_ACT_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_PWM1_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_TACHO1_OFFSET:
@@ -1634,7 +1654,9 @@ static bool mlxplat_mlxcpld_volatile_reg(struct device *dev, unsigned int reg)
 	case MLXPLAT_CPLD_LPC_REG_FAN_EVENT_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_FAN_MASK_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_WD2_TMR_OFFSET:
+	case MLXPLAT_CPLD_LPC_REG_WD2_TLEFT_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_WD3_TMR_OFFSET:
+	case MLXPLAT_CPLD_LPC_REG_WD3_TLEFT_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_PWM1_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_TACHO1_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_TACHO2_OFFSET:
@@ -2094,8 +2116,8 @@ static int __init mlxplat_init(void)
 	for (j = 0; j < MLXPLAT_CPLD_WD_MAX_DEVS; j++) {
 		if (mlxplat_wd_data[j]) {
 			mlxplat_wd_data[j]->regmap = mlxplat_hotplug->regmap;
-			priv->pdev_wd[j] = platform_device_register_resndata(
-						&mlxplat_dev->dev,
+			priv->pdev_wd[j] = platform_device_register_resndata
+						(&mlxplat_dev->dev,
 						"mlx-wdt", j, NULL, 0,
 						mlxplat_wd_data[j],
 						sizeof(*mlxplat_wd_data[j]));
@@ -2115,8 +2137,10 @@ static int __init mlxplat_init(void)
 	return 0;
 
 fail_platform_wd_register:
-	while (--j >= 0)
-		platform_device_unregister(priv->pdev_wd[j]);
+	while (--j >= 0) {
+		if (priv->pdev_wd[j])
+			platform_device_unregister(priv->pdev_wd[j]);
+	}
 	if (mlxplat_fan)
 		platform_device_unregister(priv->pdev_fan);
 fail_platform_io_regs_register:
@@ -2142,16 +2166,16 @@ static void __exit mlxplat_exit(void)
 	struct mlxplat_priv *priv = platform_get_drvdata(mlxplat_dev);
 	int i;
 
+	for (i = MLXPLAT_CPLD_WD_MAX_DEVS - 1; i >= 0 ; i--) {
+		if (mlxplat_wd_data[i])
+			platform_device_unregister(priv->pdev_wd[i]);
+	}
 	if (priv->pdev_fan)
 		platform_device_unregister(priv->pdev_fan);
 	if (priv->pdev_io_regs)
 		platform_device_unregister(priv->pdev_io_regs);
 	platform_device_unregister(priv->pdev_led);
 	platform_device_unregister(priv->pdev_hotplug);
-	for (i = MLXPLAT_CPLD_WD_MAX_DEVS - 1; i >= 0 ; i--) {
-		if (mlxplat_wd_data[i])
-			platform_device_unregister(priv->pdev_wd[i]);
-	}
 	for (i = ARRAY_SIZE(mlxplat_mux_data) - 1; i >= 0 ; i--)
 		platform_device_unregister(priv->pdev_mux[i]);
 
