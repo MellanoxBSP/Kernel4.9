@@ -104,7 +104,7 @@ mlxsw_m_port_dev_addr_get(struct mlxsw_m_port *mlxsw_m_port)
 	 * to be such it does not overflow when adding local_port
 	 * value.
 	 */
-	dev->dev_addr[ETH_ALEN - 1] += mlxsw_m_port->module + 1;
+	dev->dev_addr[ETH_ALEN - 1] = mlxsw_m_port->module + 1;
 	return 0;
 }
 
