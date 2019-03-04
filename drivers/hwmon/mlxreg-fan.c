@@ -454,7 +454,7 @@ static int mlxreg_fan_config(struct mlxreg_fan *fan,
 				return -EINVAL;
 			}
 			/* Validate that conf parameters are not zeros. */
-			if (!data->mask || !data->bit || !data->capability) {
+			if (!data->mask && !data->bit && !data->capability) {
 				dev_err(fan->dev, "invalid conf entry params: %s\n",
 					data->label);
 				return -EINVAL;
