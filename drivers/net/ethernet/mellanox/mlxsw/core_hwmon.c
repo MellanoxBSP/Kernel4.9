@@ -15,6 +15,9 @@
 #define MLXSW_HWMON_TEMP_SENSOR_MAX_COUNT 127
 #define MLXSW_HWMON_ATTR_COUNT (MLXSW_HWMON_TEMP_SENSOR_MAX_COUNT * 4 + \
 				MLXSW_MFCR_TACHOS_MAX + MLXSW_MFCR_PWMS_MAX)
+#define MLXSW_HWMON_GET_ATTR_INDEX(ind, count)				\
+				(((ind) >= (count)) ? (ind) % (count) + \
+				 MLXSW_REG_MTMP_GBOX_INDEX_MIN : (ind))
 
 struct mlxsw_hwmon_attr {
 	struct device_attribute dev_attr;
@@ -33,6 +36,7 @@ struct mlxsw_hwmon {
 	struct mlxsw_hwmon_attr hwmon_attrs[MLXSW_HWMON_ATTR_COUNT];
 	unsigned int attrs_count;
 	u8 sensor_count;
+	u8 module_sensor_count;
 };
 
 static ssize_t mlxsw_hwmon_temp_show(struct device *dev,
@@ -44,10 +48,12 @@ static ssize_t mlxsw_hwmon_temp_show(struct device *dev,
 	struct mlxsw_hwmon *mlxsw_hwmon = mlwsw_hwmon_attr->hwmon;
 	char mtmp_pl[MLXSW_REG_MTMP_LEN];
 	unsigned int temp;
+	int index;
 	int err;
 
-	mlxsw_reg_mtmp_pack(mtmp_pl, mlwsw_hwmon_attr->type_index,
-			    false, false);
+	index = MLXSW_HWMON_GET_ATTR_INDEX(mlwsw_hwmon_attr->type_index,
+					   mlxsw_hwmon->module_sensor_count);
+	mlxsw_reg_mtmp_pack(mtmp_pl, index, false, false);
 	err = mlxsw_reg_query(mlxsw_hwmon->core, MLXSW_REG(mtmp), mtmp_pl);
 	if (err) {
 		dev_err(mlxsw_hwmon->bus_info->dev, "Failed to query temp sensor\n");
@@ -66,10 +72,12 @@ static ssize_t mlxsw_hwmon_temp_max_show(struct device *dev,
 	struct mlxsw_hwmon *mlxsw_hwmon = mlwsw_hwmon_attr->hwmon;
 	char mtmp_pl[MLXSW_REG_MTMP_LEN];
 	unsigned int temp_max;
+	int index;
 	int err;
 
-	mlxsw_reg_mtmp_pack(mtmp_pl, mlwsw_hwmon_attr->type_index,
-			    false, false);
+	index = MLXSW_HWMON_GET_ATTR_INDEX(mlwsw_hwmon_attr->type_index,
+					   mlxsw_hwmon->module_sensor_count);
+	mlxsw_reg_mtmp_pack(mtmp_pl, index, false, false);
 	err = mlxsw_reg_query(mlxsw_hwmon->core, MLXSW_REG(mtmp), mtmp_pl);
 	if (err) {
 		dev_err(mlxsw_hwmon->bus_info->dev, "Failed to query temp sensor\n");
@@ -88,6 +96,7 @@ static ssize_t mlxsw_hwmon_temp_rst_store(struct device *dev,
 	struct mlxsw_hwmon *mlxsw_hwmon = mlwsw_hwmon_attr->hwmon;
 	char mtmp_pl[MLXSW_REG_MTMP_LEN];
 	unsigned long val;
+	int index;
 	int err;
 
 	err = kstrtoul(buf, 10, &val);
@@ -96,7 +105,9 @@ static ssize_t mlxsw_hwmon_temp_rst_store(struct device *dev,
 	if (val != 1)
 		return -EINVAL;
 
-	mlxsw_reg_mtmp_pack(mtmp_pl, mlwsw_hwmon_attr->type_index, true, true);
+	index = MLXSW_HWMON_GET_ATTR_INDEX(mlwsw_hwmon_attr->type_index,
+					   mlxsw_hwmon->module_sensor_count);
+	mlxsw_reg_mtmp_pack(mtmp_pl, index, true, true);
 	err = mlxsw_reg_write(mlxsw_hwmon->core, MLXSW_REG(mtmp), mtmp_pl);
 	if (err) {
 		dev_err(mlxsw_hwmon->bus_info->dev, "Failed to reset temp sensor history\n");
@@ -333,6 +344,20 @@ mlxsw_hwmon_module_temp_label_show(struct device *dev,
 		       mlwsw_hwmon_attr->type_index);
 }
 
+static ssize_t
+mlxsw_hwmon_gbox_temp_label_show(struct device *dev,
+				 struct device_attribute *attr,
+				 char *buf)
+{
+	struct mlxsw_hwmon_attr *mlwsw_hwmon_attr =
+			container_of(attr, struct mlxsw_hwmon_attr, dev_attr);
+	struct mlxsw_hwmon *mlxsw_hwmon = mlwsw_hwmon_attr->hwmon;
+	int index = mlwsw_hwmon_attr->type_index -
+		    mlxsw_hwmon->module_sensor_count + 1;
+
+	return sprintf(buf, "gearbox %03u\n", index);
+}
+
 enum mlxsw_hwmon_attr_type {
 	MLXSW_HWMON_ATTR_TYPE_TEMP,
 	MLXSW_HWMON_ATTR_TYPE_TEMP_MAX,
@@ -345,6 +370,7 @@ enum mlxsw_hwmon_attr_type {
 	MLXSW_HWMON_ATTR_TYPE_TEMP_MODULE_CRIT,
 	MLXSW_HWMON_ATTR_TYPE_TEMP_MODULE_EMERG,
 	MLXSW_HWMON_ATTR_TYPE_TEMP_MODULE_LABEL,
+	MLXSW_HWMON_ATTR_TYPE_TEMP_GBOX_LABEL,
 };
 
 static void mlxsw_hwmon_attr_add(struct mlxsw_hwmon *mlxsw_hwmon,
@@ -424,6 +450,13 @@ static void mlxsw_hwmon_attr_add(struct mlxsw_hwmon *mlxsw_hwmon,
 	case MLXSW_HWMON_ATTR_TYPE_TEMP_MODULE_LABEL:
 		mlxsw_hwmon_attr->dev_attr.show =
 			mlxsw_hwmon_module_temp_label_show;
+		mlxsw_hwmon_attr->dev_attr.attr.mode = 0444;
+		snprintf(mlxsw_hwmon_attr->name, sizeof(mlxsw_hwmon_attr->name),
+			 "temp%u_label", num + 1);
+		break;
+	case MLXSW_HWMON_ATTR_TYPE_TEMP_GBOX_LABEL:
+		mlxsw_hwmon_attr->dev_attr.show =
+			mlxsw_hwmon_gbox_temp_label_show;
 		mlxsw_hwmon_attr->dev_attr.attr.mode = 0444;
 		snprintf(mlxsw_hwmon_attr->name, sizeof(mlxsw_hwmon_attr->name),
 			 "temp%u_label", num + 1);
@@ -553,6 +586,43 @@ static int mlxsw_hwmon_module_init(struct mlxsw_hwmon *mlxsw_hwmon)
 				     index, index);
 		index++;
 	}
+	mlxsw_hwmon->module_sensor_count = index;
+
+	return 0;
+}
+
+static int mlxsw_hwmon_gearbox_init(struct mlxsw_hwmon *mlxsw_hwmon)
+{
+	char mgpir_pl[MLXSW_REG_MGPIR_LEN];
+	int index, max_index;
+	u8 gbox_num;
+	int err;
+
+	mlxsw_reg_mgpir_pack(mgpir_pl);
+	err = mlxsw_reg_query(mlxsw_hwmon->core, MLXSW_REG(mgpir), mgpir_pl);
+	if (err)
+		return 0;
+
+	mlxsw_reg_mgpir_unpack(mgpir_pl, &gbox_num, NULL, NULL);
+	if (!gbox_num)
+		return 0;
+
+	index = mlxsw_hwmon->module_sensor_count;
+	max_index = mlxsw_hwmon->module_sensor_count + gbox_num;
+	while (index < max_index) {
+		mlxsw_hwmon_attr_add(mlxsw_hwmon, MLXSW_HWMON_ATTR_TYPE_TEMP,
+				     index, index);
+		mlxsw_hwmon_attr_add(mlxsw_hwmon,
+				     MLXSW_HWMON_ATTR_TYPE_TEMP_MAX, index,
+				     index);
+		mlxsw_hwmon_attr_add(mlxsw_hwmon,
+				     MLXSW_HWMON_ATTR_TYPE_TEMP_RST, index,
+				     index);
+		mlxsw_hwmon_attr_add(mlxsw_hwmon,
+				     MLXSW_HWMON_ATTR_TYPE_TEMP_GBOX_LABEL,
+				     index, index);
+		index++;
+	}
 
 	return 0;
 }
@@ -583,6 +653,10 @@ int mlxsw_hwmon_init(struct mlxsw_core *mlxsw_core,
 	if (err)
 		goto err_temp_module_init;
 
+	err = mlxsw_hwmon_gearbox_init(mlxsw_hwmon);
+	if (err)
+		goto err_temp_gearbox_init;
+
 	mlxsw_hwmon->groups[0] = &mlxsw_hwmon->group;
 	mlxsw_hwmon->group.attrs = mlxsw_hwmon->attrs;
 
@@ -599,6 +673,7 @@ int mlxsw_hwmon_init(struct mlxsw_core *mlxsw_core,
 	return 0;
 
 err_hwmon_register:
+err_temp_gearbox_init:
 err_temp_module_init:
 err_fans_init:
 err_temp_init:

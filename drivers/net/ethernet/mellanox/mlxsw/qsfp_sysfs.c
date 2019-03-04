@@ -268,6 +268,13 @@ static const struct dmi_system_id mlxsw_qsfp_dmi_table[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "MSN37"),
 		},
 	},
+	{
+		.callback = mlxsw_qsfp_dmi_set_qsfp_num,
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "Mellanox Technologies"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "MSN38"),
+		},
+	},
 	{ }
 };
 MODULE_DEVICE_TABLE(dmi, mlxsw_qsfp_dmi_table);
