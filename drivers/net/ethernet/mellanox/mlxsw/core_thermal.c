@@ -452,36 +452,27 @@ static int mlxsw_thermal_module_temp_get(struct thermal_zone_device *tzdev,
 	struct mlxsw_thermal_module *tz = tzdev->devdata;
 	struct mlxsw_thermal *thermal = tz->parent;
 	struct device *dev = thermal->bus_info->dev;
-	char mtbr_pl[MLXSW_REG_MTBR_LEN];
-	u16 temp;
+	char mtmp_pl[MLXSW_REG_MTMP_LEN];
+	unsigned int temp;
 	int err;
 
 	/* Read module temperature. */
-	mlxsw_reg_mtbr_pack(mtbr_pl, MLXSW_REG_MTBR_BASE_MODULE_INDEX +
-			    tz->module, 1);
-	err = mlxsw_reg_query(thermal->core, MLXSW_REG(mtbr), mtbr_pl);
-	if (err)
-		return err;
-
-	mlxsw_reg_mtbr_temp_unpack(mtbr_pl, 0, &temp, NULL);
-	/* Update temperature. */
-	switch (temp) {
-	case MLXSW_REG_MTBR_NO_CONN: /* fall-through */
-	case MLXSW_REG_MTBR_NO_TEMP_SENS: /* fall-through */
-	case MLXSW_REG_MTBR_INDEX_NA: /* fall-through */
-	case MLXSW_REG_MTBR_BAD_SENS_INFO:
+	mlxsw_reg_mtmp_pack(mtmp_pl, MLXSW_REG_MTMP_MODULE_INDEX_MIN +
+			    tz->module, false, false);
+	err = mlxsw_reg_query(thermal->core, MLXSW_REG(mtmp), mtmp_pl);
+	if (err) {
+		dev_err(dev, "Failed to query temp sensor\n");
 		temp = 0;
-		break;
-	default:
-		temp = MLXSW_REG_MTMP_TEMP_TO_MC(temp);
-		/* Reset all trip point. */
-		mlxsw_thermal_module_trips_reset(tz);
-		/* Update trip points. */
+		*p_temp = (int) temp;
+		return 0;
+	}
+	mlxsw_reg_mtmp_unpack(mtmp_pl, &temp, NULL, NULL);
+
+	if (temp) {
 		err = mlxsw_thermal_module_trips_update(dev, thermal->core,
 							tz);
 		if (err)
 			return err;
-		break;
 	}
 
 	*p_temp = (int) temp;
@@ -714,12 +705,12 @@ mlxsw_thermal_module_tz_init(struct mlxsw_thermal_module *module_tz)
 	snprintf(tz_name, sizeof(tz_name), "mlxsw-module%d",
 		 module_tz->module + 1);
 	module_tz->tzdev = thermal_zone_device_register(tz_name,
-						  MLXSW_THERMAL_NUM_TRIPS,
-						  MLXSW_THERMAL_TRIP_MASK,
-						  module_tz,
-						  &mlxsw_thermal_module_ops,
-						  &mlxsw_thermal_module_params,
-						  0, 0);
+							MLXSW_THERMAL_NUM_TRIPS,
+							MLXSW_THERMAL_TRIP_MASK,
+							module_tz,
+							&mlxsw_thermal_module_ops,
+							&mlxsw_thermal_module_params,
+							0, 0);
 	if (IS_ERR(module_tz->tzdev)) {
 		err = PTR_ERR(module_tz->tzdev);
 		return err;
@@ -789,6 +780,9 @@ mlxsw_thermal_modules_init(struct device *dev, struct mlxsw_core *core,
 	struct mlxsw_thermal_module *module_tz;
 	int i, err;
 
+	if (!mlxsw_core_res_query_enabled(core))
+		return 0;
+
 	thermal->tz_module_arr = kcalloc(module_count,
 					 sizeof(*thermal->tz_module_arr),
 					 GFP_KERNEL);
@@ -801,8 +795,7 @@ mlxsw_thermal_modules_init(struct device *dev, struct mlxsw_core *core,
 			goto err_unreg_tz_module_arr;
 	}
 
-	module_count -= 1;
-	for (i = 0; i < module_count; i++) {
+	for (i = 0; i < module_count - 1; i++) {
 		module_tz = &thermal->tz_module_arr[i];
 		if (!module_tz->parent)
 			continue;
@@ -814,7 +807,7 @@ mlxsw_thermal_modules_init(struct device *dev, struct mlxsw_core *core,
 	return 0;
 
 err_unreg_tz_module_arr:
-	for (i = module_count; i >= 0; i--)
+	for (i = module_count - 1; i >= 0; i--)
 		mlxsw_thermal_module_fini(&thermal->tz_module_arr[i]);
 	kfree(thermal->tz_module_arr);
 	return err;
@@ -825,6 +818,9 @@ mlxsw_thermal_modules_fini(struct mlxsw_thermal *thermal)
 {
 	unsigned int module_count = mlxsw_core_max_ports(thermal->core);
 	int i;
+
+	if (!mlxsw_core_res_query_enabled(thermal->core))
+		return;
 
 	for (i = module_count - 1; i >= 0; i--)
 		mlxsw_thermal_module_fini(&thermal->tz_module_arr[i]);

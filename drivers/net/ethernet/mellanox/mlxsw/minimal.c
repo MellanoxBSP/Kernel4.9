@@ -45,6 +45,23 @@ static const struct net_device_ops mlxsw_m_port_netdev_ops = {
 	.ndo_stop		= mlxsw_m_port_dummy_open_stop,
 };
 
+static void mlxsw_m_module_get_drvinfo(struct net_device *dev,
+				       struct ethtool_drvinfo *drvinfo)
+{
+	struct mlxsw_m_port *mlxsw_m_port = netdev_priv(dev);
+	struct mlxsw_m *mlxsw_m = mlxsw_m_port->mlxsw_m;
+
+	strlcpy(drvinfo->driver, mlxsw_m->bus_info->device_kind,
+		sizeof(drvinfo->driver));
+	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
+		 "%d.%d.%d",
+		 mlxsw_m->bus_info->fw_rev.major,
+		 mlxsw_m->bus_info->fw_rev.minor,
+		 mlxsw_m->bus_info->fw_rev.subminor);
+	strlcpy(drvinfo->bus_info, mlxsw_m->bus_info->device_name,
+		sizeof(drvinfo->bus_info));
+}
+
 static int mlxsw_m_get_module_info(struct net_device *netdev,
 				   struct ethtool_modinfo *modinfo)
 {
@@ -66,6 +83,7 @@ mlxsw_m_get_module_eeprom(struct net_device *netdev, struct ethtool_eeprom *ee,
 }
 
 static const struct ethtool_ops mlxsw_m_port_ethtool_ops = {
+	.get_drvinfo		= mlxsw_m_module_get_drvinfo,
 	.get_module_info	= mlxsw_m_get_module_info,
 	.get_module_eeprom	= mlxsw_m_get_module_eeprom,
 };

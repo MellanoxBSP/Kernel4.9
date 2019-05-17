@@ -7589,17 +7589,18 @@ MLXSW_ITEM32(reg, mtcap, sensor_count, 0x00, 0, 7);
  */
 #define MLXSW_REG_MTMP_ID 0x900A
 #define MLXSW_REG_MTMP_LEN 0x20
-#define MLXSW_REG_MTMP_GBOX_INDEX_MIN 256
 
 MLXSW_REG_DEFINE(mtmp, MLXSW_REG_MTMP_ID, MLXSW_REG_MTMP_LEN);
 
+#define MLXSW_REG_MTMP_MODULE_INDEX_MIN 64
+#define MLXSW_REG_MTMP_GBOX_INDEX_MIN 256
 /* reg_mtmp_sensor_index
  * Sensors index to access.
  * 64-127 of sensor_index are mapped to the SFP+/QSFP modules sequentially
  * (module 0 is mapped to sensor_index 64).
  * Access: Index
  */
-MLXSW_ITEM32(reg, mtmp, sensor_index, 0x00, 0, 11);
+MLXSW_ITEM32(reg, mtmp, sensor_index, 0x00, 0, 12);
 
 /* Convert to milli degrees Celsius */
 #define MLXSW_REG_MTMP_TEMP_TO_MC(val) (val * 125)
@@ -7710,7 +7711,7 @@ MLXSW_REG_DEFINE(mtbr, MLXSW_REG_MTBR_ID, MLXSW_REG_MTBR_LEN);
  * 64-127 are mapped to the SFP+/QSFP modules sequentially).
  * Access: Index
  */
-MLXSW_ITEM32(reg, mtbr, base_sensor_index, 0x00, 0, 7);
+MLXSW_ITEM32(reg, mtbr, base_sensor_index, 0x00, 0, 12);
 
 /* reg_mtbr_num_rec
  * Request: Number of records to read
