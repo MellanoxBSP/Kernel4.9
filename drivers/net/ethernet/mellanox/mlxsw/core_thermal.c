@@ -906,7 +906,7 @@ mlxsw_thermal_gearboxes_fini(struct mlxsw_thermal *thermal)
 	int i;
 
 	for (i = thermal->tz_gearbox_num - 1; i >= 0; i--)
-		mlxsw_thermal_gearbox_tz_fini(&thermal->tz_gearbox_arr[i]); /*Remove*/
+		mlxsw_thermal_gearbox_tz_fini(&thermal->tz_gearbox_arr[i]);
 	kfree(thermal->tz_gearbox_arr);
 }
 

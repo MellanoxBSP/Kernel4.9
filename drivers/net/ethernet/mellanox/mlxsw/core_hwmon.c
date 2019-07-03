@@ -512,9 +512,9 @@ static int mlxsw_hwmon_fans_init(struct mlxsw_hwmon *mlxsw_hwmon)
 static int mlxsw_hwmon_module_init(struct mlxsw_hwmon *mlxsw_hwmon)
 {
 	unsigned int module_count = mlxsw_core_max_ports(mlxsw_hwmon->core);
+	u8 width, module, last_module = module_count;
 	char pmlp_pl[MLXSW_REG_PMLP_LEN] = {0};
 	int i, index;
-	u8 width;
 	int err;
 
 	if (!mlxsw_core_res_query_enabled(mlxsw_hwmon->core))
@@ -538,6 +538,11 @@ static int mlxsw_hwmon_module_init(struct mlxsw_hwmon *mlxsw_hwmon)
 		width = mlxsw_reg_pmlp_width_get(pmlp_pl);
 		if (!width)
 			continue;
+		module = mlxsw_reg_pmlp_module_get(pmlp_pl, 0);
+		/* Skip, if port belongs to the cluster */
+		if (module == last_module)
+			continue;
+		last_module = module;
 		mlxsw_hwmon_attr_add(mlxsw_hwmon,
 				     MLXSW_HWMON_ATTR_TYPE_TEMP_MODULE, index,
 				     index);
