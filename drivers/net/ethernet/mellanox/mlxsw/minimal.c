@@ -264,7 +264,7 @@ static int mlxsw_m_ports_create(struct mlxsw_m *mlxsw_m)
 	}
 
 	/* Create port objects for each valid entry */
-	for (i = 0; i < mlxsw_m->max_ports; i++) {
+	for (i = 0; i < max_ports; i++) {
 		if (mlxsw_m->module_to_port[i] > 0) {
 			err = mlxsw_m_port_create(mlxsw_m,
 						  mlxsw_m->module_to_port[i],
@@ -294,9 +294,10 @@ err_module_to_port_alloc:
 
 static void mlxsw_m_ports_remove(struct mlxsw_m *mlxsw_m)
 {
+	unsigned int max_ports = mlxsw_core_max_ports(mlxsw_m->core);
 	int i;
 
-	for (i = 0; i < mlxsw_m->max_ports; i++) {
+	for (i = 0; i < max_ports; i++) {
 		if (mlxsw_m->module_to_port[i] > 0) {
 			mlxsw_m_port_remove(mlxsw_m,
 					    mlxsw_m->module_to_port[i]);
