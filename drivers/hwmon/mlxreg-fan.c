@@ -27,10 +27,9 @@
 #define MLXREG_FAN_SPEED_MAX			(MLXREG_FAN_MAX_STATE * 2)
 #define MLXREG_FAN_SPEED_MIN_LEVEL		2	/* 20 percent */
 #define MLXREG_FAN_TACHO_SAMPLES_PER_PULSE_DEF	44
-#define MLXREG_FAN_TACHO_DIVIDER_MIN		283
-#define MLXREG_FAN_TACHO_DIVIDER_DEF		(MLXREG_FAN_TACHO_DIVIDER_MIN \
-						 * 4)
-#define MLXREG_FAN_TACHO_DIVIDER_SCALE_MAX	32
+#define MLXREG_FAN_TACHO_DIV_MIN		283
+#define MLXREG_FAN_TACHO_DIV_DEF		(MLXREG_FAN_TACHO_DIV_MIN * 4)
+#define MLXREG_FAN_TACHO_DIV_SCALE_MAX	64
 /*
  * FAN datasheet defines the formula for RPM calculations as RPM = 15/t-high.
  * The logic in a programmable device measures the time t-high by sampling the
@@ -364,8 +363,7 @@ static const struct thermal_cooling_device_ops mlxreg_fan_cooling_ops = {
 };
 
 static int mlxreg_fan_connect_verify(struct mlxreg_fan *fan,
-				     struct mlxreg_core_data *data,
-				     bool *connected)
+				     struct mlxreg_core_data *data)
 {
 	u32 regval;
 	int err;
@@ -377,9 +375,7 @@ static int mlxreg_fan_connect_verify(struct mlxreg_fan *fan,
 		return err;
 	}
 
-	*connected = (regval & data->bit) ? true : false;
-
-	return 0;
+	return !!(regval & data->bit);
 }
 
 static int mlxreg_fan_speed_divider_get(struct mlxreg_fan *fan,
@@ -399,10 +395,10 @@ static int mlxreg_fan_speed_divider_get(struct mlxreg_fan *fan,
 	 * Set divider value according to the capability register, in case it
 	 * contains valid value. Otherwise use default value. The purpose of
 	 * this validation is to protect against the old hardware, in which
-	 * this register can be un-initialized.
+	 * this register can return zero.
 	 */
-	if (regval > 0 && regval <= MLXREG_FAN_TACHO_DIVIDER_SCALE_MAX)
-		fan->divider = regval * MLXREG_FAN_TACHO_DIVIDER_MIN;
+	if (regval > 0 && regval <= MLXREG_FAN_TACHO_DIV_SCALE_MAX)
+		fan->divider = regval * MLXREG_FAN_TACHO_DIV_MIN;
 
 	return 0;
 }
@@ -411,12 +407,12 @@ static int mlxreg_fan_config(struct mlxreg_fan *fan,
 			     struct mlxreg_core_platform_data *pdata)
 {
 	struct mlxreg_core_data *data = pdata->data;
-	bool configured = false, connected = false;
+	bool configured = false;
 	int tacho_num = 0, i;
 	int err;
 
 	fan->samples = MLXREG_FAN_TACHO_SAMPLES_PER_PULSE_DEF;
-	fan->divider = MLXREG_FAN_TACHO_DIVIDER_DEF;
+	fan->divider = MLXREG_FAN_TACHO_DIV_DEF;
 	for (i = 0; i < pdata->counter; i++, data++) {
 		if (strnstr(data->label, "tacho", sizeof(data->label))) {
 			if (tacho_num == MLXREG_FAN_MAX_TACHO) {
@@ -426,11 +422,10 @@ static int mlxreg_fan_config(struct mlxreg_fan *fan,
 			}
 
 			if (data->capability) {
-				err = mlxreg_fan_connect_verify(fan, data,
-								&connected);
-				if (err)
+				err = mlxreg_fan_connect_verify(fan, data);
+				if (err < 0)
 					return err;
-				if (!connected) {
+				else if (!err) {
 					tacho_num++;
 					continue;
 				}
@@ -464,8 +459,10 @@ static int mlxreg_fan_config(struct mlxreg_fan *fan,
 				if (err)
 					return err;
 			} else {
-				fan->samples = data->mask;
-				fan->divider = data->bit;
+				if (data->mask)
+					fan->samples = data->mask;
+				if (data->bit)
+					fan->divider = data->bit;
 			}
 			configured = true;
 		} else {
@@ -486,21 +483,22 @@ static int mlxreg_fan_config(struct mlxreg_fan *fan,
 static int mlxreg_fan_probe(struct platform_device *pdev)
 {
 	struct mlxreg_core_platform_data *pdata;
+	struct device *dev = &pdev->dev;
 	struct mlxreg_fan *fan;
 	struct device *hwm;
 	int err;
 
-	pdata = dev_get_platdata(&pdev->dev);
+	pdata = dev_get_platdata(dev);
 	if (!pdata) {
-		dev_err(&pdev->dev, "Failed to get platform data.\n");
+		dev_err(dev, "Failed to get platform data.\n");
 		return -EINVAL;
 	}
 
-	fan = devm_kzalloc(&pdev->dev, sizeof(*fan), GFP_KERNEL);
+	fan = devm_kzalloc(dev, sizeof(*fan), GFP_KERNEL);
 	if (!fan)
 		return -ENOMEM;
 
-	fan->dev = &pdev->dev;
+	fan->dev = dev;
 	fan->regmap = pdata->regmap;
 	platform_set_drvdata(pdev, fan);
 
@@ -508,12 +506,12 @@ static int mlxreg_fan_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	hwm = devm_hwmon_device_register_with_info(&pdev->dev, "mlxreg_fan",
+	hwm = devm_hwmon_device_register_with_info(dev, "mlxreg_fan",
 						   fan,
 						   &mlxreg_fan_hwmon_chip_info,
 						   NULL);
 	if (IS_ERR(hwm)) {
-		dev_err(&pdev->dev, "Failed to register hwmon device\n");
+		dev_err(dev, "Failed to register hwmon device\n");
 		return PTR_ERR(hwm);
 	}
 
@@ -521,7 +519,7 @@ static int mlxreg_fan_probe(struct platform_device *pdev)
 		fan->cdev = thermal_cooling_device_register("mlxreg_fan", fan,
 						&mlxreg_fan_cooling_ops);
 		if (IS_ERR(fan->cdev)) {
-			dev_err(&pdev->dev, "Failed to register cooling device\n");
+			dev_err(dev, "Failed to register cooling device\n");
 			return PTR_ERR(fan->cdev);
 		}
 	}

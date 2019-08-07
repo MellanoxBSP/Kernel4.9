@@ -383,7 +383,6 @@ mlxsw_i2c_write(struct device *dev, size_t in_mbox_size, u8 *in_mbox, int num,
 
 mlxsw_i2c_write_exit:
 	kfree(tran_buf);
-
 	return err;
 }
 
@@ -567,12 +566,21 @@ static int mlxsw_i2c_probe(struct i2c_client *client,
 	if (!mlxsw_i2c)
 		return -ENOMEM;
 
-	if (quirks)
-		 mlxsw_i2c->block_size = max_t(u16, MLXSW_I2C_BLK_DEF,
-					       min_t(u16, quirks->max_read_len,
-					       quirks->max_write_len));
-	else
+	if (quirks) {
+		if ((quirks->max_read_len &&
+		     quirks->max_read_len < MLXSW_I2C_BLK_DEF) ||
+		    (quirks->max_write_len &&
+		     quirks->max_write_len < MLXSW_I2C_BLK_DEF)) {
+			dev_err(&client->dev, "Insufficient transaction buffer length\n");
+			return -EOPNOTSUPP;
+		}
+
+		mlxsw_i2c->block_size = max_t(u16, MLXSW_I2C_BLK_DEF,
+					      min_t(u16, quirks->max_read_len,
+						    quirks->max_write_len));
+	} else {
 		mlxsw_i2c->block_size = MLXSW_I2C_BLK_DEF;
+	}
 
 	i2c_set_clientdata(client, mlxsw_i2c);
 	mutex_init(&mlxsw_i2c->cmd.lock);

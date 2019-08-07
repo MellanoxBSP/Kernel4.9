@@ -52,8 +52,7 @@ static ssize_t mlxsw_hwmon_temp_show(struct device *dev,
 			container_of(attr, struct mlxsw_hwmon_attr, dev_attr);
 	struct mlxsw_hwmon *mlxsw_hwmon = mlwsw_hwmon_attr->hwmon;
 	char mtmp_pl[MLXSW_REG_MTMP_LEN];
-	unsigned int temp;
-	int index;
+	int temp, index;
 	int err;
 
 	index = mlxsw_hwmon_get_attr_index(mlwsw_hwmon_attr->type_index,
@@ -65,7 +64,7 @@ static ssize_t mlxsw_hwmon_temp_show(struct device *dev,
 		return err;
 	}
 	mlxsw_reg_mtmp_unpack(mtmp_pl, &temp, NULL, NULL);
-	return sprintf(buf, "%u\n", temp);
+	return sprintf(buf, "%d\n", temp);
 }
 
 static ssize_t mlxsw_hwmon_temp_max_show(struct device *dev,
@@ -76,8 +75,7 @@ static ssize_t mlxsw_hwmon_temp_max_show(struct device *dev,
 			container_of(attr, struct mlxsw_hwmon_attr, dev_attr);
 	struct mlxsw_hwmon *mlxsw_hwmon = mlwsw_hwmon_attr->hwmon;
 	char mtmp_pl[MLXSW_REG_MTMP_LEN];
-	unsigned int temp_max;
-	int index;
+	int temp_max, index;
 	int err;
 
 	index = mlxsw_hwmon_get_attr_index(mlwsw_hwmon_attr->type_index,
@@ -89,7 +87,7 @@ static ssize_t mlxsw_hwmon_temp_max_show(struct device *dev,
 		return err;
 	}
 	mlxsw_reg_mtmp_unpack(mtmp_pl, NULL, &temp_max, NULL);
-	return sprintf(buf, "%u\n", temp_max);
+	return sprintf(buf, "%d\n", temp_max);
 }
 
 static ssize_t mlxsw_hwmon_temp_rst_store(struct device *dev,
@@ -215,8 +213,8 @@ static ssize_t mlxsw_hwmon_module_temp_show(struct device *dev,
 			container_of(attr, struct mlxsw_hwmon_attr, dev_attr);
 	struct mlxsw_hwmon *mlxsw_hwmon = mlwsw_hwmon_attr->hwmon;
 	char mtmp_pl[MLXSW_REG_MTMP_LEN];
-	unsigned int temp;
 	u8 module;
+	int temp;
 	int err;
 
 	module = mlwsw_hwmon_attr->type_index - mlxsw_hwmon->sensor_count;
@@ -227,7 +225,7 @@ static ssize_t mlxsw_hwmon_module_temp_show(struct device *dev,
 		return err;
 	mlxsw_reg_mtmp_unpack(mtmp_pl, &temp, NULL, NULL);
 
-	return sprintf(buf, "%u\n", temp);
+	return sprintf(buf, "%d\n", temp);
 }
 
 static ssize_t mlxsw_hwmon_module_temp_fault_show(struct device *dev,
@@ -237,18 +235,37 @@ static ssize_t mlxsw_hwmon_module_temp_fault_show(struct device *dev,
 	struct mlxsw_hwmon_attr *mlwsw_hwmon_attr =
 			container_of(attr, struct mlxsw_hwmon_attr, dev_attr);
 	struct mlxsw_hwmon *mlxsw_hwmon = mlwsw_hwmon_attr->hwmon;
-	char mtmp_pl[MLXSW_REG_MTMP_LEN];
+	char mtbr_pl[MLXSW_REG_MTBR_LEN] = {0};
 	u8 module, fault;
+	u16 temp;
 	int err;
 
 	module = mlwsw_hwmon_attr->type_index - mlxsw_hwmon->sensor_count;
-	mlxsw_reg_mtmp_pack(mtmp_pl, MLXSW_REG_MTBR_BASE_MODULE_INDEX + module,
-			    false, false);
-	err = mlxsw_reg_query(mlxsw_hwmon->core, MLXSW_REG(mtmp), mtmp_pl);
-	if (err)
+	mlxsw_reg_mtbr_pack(mtbr_pl, MLXSW_REG_MTBR_BASE_MODULE_INDEX + module,
+			    1);
+	err = mlxsw_reg_query(mlxsw_hwmon->core, MLXSW_REG(mtbr), mtbr_pl);
+	if (err) {
+		dev_err(dev, "Failed to query module temperature sensor\n");
+		return err;
+	}
+
+	mlxsw_reg_mtbr_temp_unpack(mtbr_pl, 0, &temp, NULL);
+
+	/* Update status and temperature cache. */
+	switch (temp) {
+	case MLXSW_REG_MTBR_BAD_SENS_INFO:
+		/* Untrusted cable is connected. Reading temperature from its
+		 * sensor is faulty.
+		 */
 		fault = 1;
-	else
+		break;
+	case MLXSW_REG_MTBR_NO_CONN: /* fall-through */
+	case MLXSW_REG_MTBR_NO_TEMP_SENS: /* fall-through */
+	case MLXSW_REG_MTBR_INDEX_NA:
+	default:
 		fault = 0;
+		break;
+	}
 
 	return sprintf(buf, "%u\n", fault);
 }
