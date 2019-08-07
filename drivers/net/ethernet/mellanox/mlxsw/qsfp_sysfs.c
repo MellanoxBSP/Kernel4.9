@@ -279,16 +279,36 @@ static const struct dmi_system_id mlxsw_qsfp_dmi_table[] = {
 };
 MODULE_DEVICE_TABLE(dmi, mlxsw_qsfp_dmi_table);
 
+static int mlxsw_qsfp_set_module_num(struct mlxsw_qsfp *mlxsw_qsfp)
+{
+	char pmlp_pl[MLXSW_REG_PMLP_LEN];
+	u8 width;
+	int i, err;
+
+	for (i = 1; i <= mlxsw_qsfp_num; i++) {
+		mlxsw_reg_pmlp_pack(pmlp_pl, i);
+		err = mlxsw_reg_query(mlxsw_qsfp->core, MLXSW_REG(pmlp),
+				      pmlp_pl);
+		if (err)
+			return err;
+		width = mlxsw_reg_pmlp_width_get(pmlp_pl);
+		if (!width)
+			continue;
+		mlxsw_qsfp->module_count++;
+	}
+
+	return 0;
+}
+
 int mlxsw_qsfp_init(struct mlxsw_core *mlxsw_core,
 		    const struct mlxsw_bus_info *mlxsw_bus_info,
 		    struct mlxsw_qsfp **p_qsfp)
 {
 	struct device_attribute *dev_attr, *cpld_dev_attr;
-	char pmlp_pl[MLXSW_REG_PMLP_LEN];
+	char mgpir_pl[MLXSW_REG_MGPIR_LEN];
 	struct mlxsw_qsfp *mlxsw_qsfp;
 	struct bin_attribute *eeprom;
 	int i, count;
-	u8 width;
 	int err;
 
 	if (!strcmp(mlxsw_bus_info->device_kind, "i2c"))
@@ -305,16 +325,17 @@ int mlxsw_qsfp_init(struct mlxsw_core *mlxsw_core,
 	mlxsw_qsfp->bus_info = mlxsw_bus_info;
 	mlxsw_bus_info->dev->platform_data = mlxsw_qsfp;
 
-	for (i = 1; i <= mlxsw_qsfp_num; i++) {
-		mlxsw_reg_pmlp_pack(pmlp_pl, i);
-		err = mlxsw_reg_query(mlxsw_qsfp->core, MLXSW_REG(pmlp),
-				      pmlp_pl);
+	mlxsw_reg_mgpir_pack(mgpir_pl);
+	err = mlxsw_reg_query(mlxsw_qsfp->core, MLXSW_REG(mgpir), mgpir_pl);
+	if (err) {
+		err = mlxsw_qsfp_set_module_num(mlxsw_qsfp);
 		if (err)
 			return err;
-		width = mlxsw_reg_pmlp_width_get(pmlp_pl);
-		if (!width)
-			continue;
-		mlxsw_qsfp->module_count++;
+	} else {
+		mlxsw_reg_mgpir_unpack(mgpir_pl, NULL, NULL, NULL,
+			       &mlxsw_qsfp->module_count);
+		if (!mlxsw_qsfp->module_count)
+			return 0;
 	}
 
 	count = mlxsw_qsfp->module_count + 1;

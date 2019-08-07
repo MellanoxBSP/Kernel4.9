@@ -528,13 +528,21 @@ static int mlxsw_hwmon_fans_init(struct mlxsw_hwmon *mlxsw_hwmon)
 
 static int mlxsw_hwmon_module_init(struct mlxsw_hwmon *mlxsw_hwmon)
 {
-	unsigned int module_count = mlxsw_core_max_ports(mlxsw_hwmon->core);
-	u8 width, module, last_module = module_count;
-	char pmlp_pl[MLXSW_REG_PMLP_LEN] = {0};
-	int i, index;
+	char mgpir_pl[MLXSW_REG_MGPIR_LEN];
+	int index, i;
 	int err;
 
 	if (!mlxsw_core_res_query_enabled(mlxsw_hwmon->core))
+		return 0;
+
+	mlxsw_reg_mgpir_pack(mgpir_pl);
+	err = mlxsw_reg_query(mlxsw_hwmon->core, MLXSW_REG(mgpir), mgpir_pl);
+	if (err)
+		return err;
+
+	mlxsw_reg_mgpir_unpack(mgpir_pl, NULL, NULL, NULL,
+			       &mlxsw_hwmon->module_sensor_count);
+	if (!mlxsw_hwmon->module_sensor_count)
 		return 0;
 
 	/* Add extra attributes for module temperature. Sensor index is
@@ -542,42 +550,25 @@ static int mlxsw_hwmon_module_init(struct mlxsw_hwmon *mlxsw_hwmon)
 	 * sensor_count are already utilized by the sensors connected through
 	 * mtmp register by mlxsw_hwmon_temp_init().
 	 */
-	index = mlxsw_hwmon->sensor_count;
-	for (i = 1; i < module_count; i++) {
-		mlxsw_reg_pmlp_pack(pmlp_pl, i);
-		err = mlxsw_reg_query(mlxsw_hwmon->core, MLXSW_REG(pmlp),
-				      pmlp_pl);
-		if (err) {
-			dev_err(mlxsw_hwmon->bus_info->dev, "Failed to read module index %d\n",
-				i);
-			return err;
-		}
-		width = mlxsw_reg_pmlp_width_get(pmlp_pl);
-		if (!width)
-			continue;
-		module = mlxsw_reg_pmlp_module_get(pmlp_pl, 0);
-		/* Skip, if port belongs to the cluster */
-		if (module == last_module)
-			continue;
-		last_module = module;
+	index = mlxsw_hwmon->sensor_count + mlxsw_hwmon->module_sensor_count;
+	mlxsw_hwmon->module_sensor_count += mlxsw_hwmon->sensor_count;
+	for (i = mlxsw_hwmon->sensor_count;
+	     i < mlxsw_hwmon->module_sensor_count; i++) {
 		mlxsw_hwmon_attr_add(mlxsw_hwmon,
-				     MLXSW_HWMON_ATTR_TYPE_TEMP_MODULE, index,
-				     index);
+				     MLXSW_HWMON_ATTR_TYPE_TEMP_MODULE, i, i);
 		mlxsw_hwmon_attr_add(mlxsw_hwmon,
 				     MLXSW_HWMON_ATTR_TYPE_TEMP_MODULE_FAULT,
-				     index, index);
+				     i, i);
 		mlxsw_hwmon_attr_add(mlxsw_hwmon,
-				     MLXSW_HWMON_ATTR_TYPE_TEMP_MODULE_CRIT,
-				     index, index);
+				     MLXSW_HWMON_ATTR_TYPE_TEMP_MODULE_CRIT, i,
+				     i);
 		mlxsw_hwmon_attr_add(mlxsw_hwmon,
 				     MLXSW_HWMON_ATTR_TYPE_TEMP_MODULE_EMERG,
-				     index, index);
+				     i, i);
 		mlxsw_hwmon_attr_add(mlxsw_hwmon,
 				     MLXSW_HWMON_ATTR_TYPE_TEMP_MODULE_LABEL,
-				     index, index);
-		index++;
+				     i, i);
 	}
-	mlxsw_hwmon->module_sensor_count = index;
 
 	return 0;
 }
@@ -595,7 +586,7 @@ static int mlxsw_hwmon_gearbox_init(struct mlxsw_hwmon *mlxsw_hwmon)
 	if (err)
 		return 0;
 
-	mlxsw_reg_mgpir_unpack(mgpir_pl, &gbox_num, NULL, NULL);
+	mlxsw_reg_mgpir_unpack(mgpir_pl, &gbox_num, NULL, NULL, NULL);
 	if (!gbox_num)
 		return 0;
 

@@ -89,23 +89,6 @@ static const struct ethtool_ops mlxsw_m_port_ethtool_ops = {
 };
 
 static int
-mlxsw_m_port_module_info_get(struct mlxsw_m *mlxsw_m, u8 local_port,
-			     u8 *p_module, u8 *p_width)
-{
-	char pmlp_pl[MLXSW_REG_PMLP_LEN];
-	int err;
-
-	mlxsw_reg_pmlp_pack(pmlp_pl, local_port);
-	err = mlxsw_reg_query(mlxsw_m->core, MLXSW_REG(pmlp), pmlp_pl);
-	if (err)
-		return err;
-	*p_module = mlxsw_reg_pmlp_module_get(pmlp_pl, 0);
-	*p_width = mlxsw_reg_pmlp_width_get(pmlp_pl);
-
-	return 0;
-}
-
-static int
 mlxsw_m_port_dev_addr_get(struct mlxsw_m_port *mlxsw_m_port)
 {
 	struct mlxsw_m *mlxsw_m = mlxsw_m_port->mlxsw_m;
@@ -158,7 +141,7 @@ mlxsw_m_port_create(struct mlxsw_m *mlxsw_m, u8 local_port, u8 module)
 	mlxsw_m_port = netdev_priv(dev);
 	mlxsw_m_port->dev = dev;
 	mlxsw_m_port->mlxsw_m = mlxsw_m;
-	mlxsw_m_port->local_port = local_port;
+	mlxsw_m_port->local_port = module;
 	mlxsw_m_port->module = module;
 
 	dev->netdev_ops = &mlxsw_m_port_netdev_ops;
@@ -205,87 +188,48 @@ static void mlxsw_m_port_remove(struct mlxsw_m *mlxsw_m, u8 local_port)
 	mlxsw_core_port_fini(mlxsw_m->core, local_port);
 }
 
-static int mlxsw_m_port_module_map(struct mlxsw_m *mlxsw_m, u8 local_port,
-				   u8 *last_module)
-{
-	u8 module, width;
-	int err;
-
-	/* Fill out to local port mapping array */
-	err = mlxsw_m_port_module_info_get(mlxsw_m, local_port, &module,
-					   &width);
-	if (err)
-		return err;
-
-	if (!width)
-		return 0;
-	/* Skip, if port belongs to the cluster */
-	if (module == *last_module)
-		return 0;
-	*last_module = module;
-	mlxsw_m->module_to_port[module] = ++mlxsw_m->max_ports;
-
-	return 0;
-}
-
-static void mlxsw_m_port_module_unmap(struct mlxsw_m *mlxsw_m, u8 module)
-{
-	mlxsw_m->module_to_port[module] = -1;
-}
-
 static int mlxsw_m_ports_create(struct mlxsw_m *mlxsw_m)
 {
-	unsigned int max_ports = mlxsw_core_max_ports(mlxsw_m->core);
-	u8 last_module = max_ports;
+	char mgpir_pl[MLXSW_REG_MGPIR_LEN];
 	int i;
 	int err;
 
-	mlxsw_m->ports = kcalloc(max_ports, sizeof(*mlxsw_m->ports),
+	mlxsw_reg_mgpir_pack(mgpir_pl);
+	err = mlxsw_reg_query(mlxsw_m->core, MLXSW_REG(mgpir), mgpir_pl);
+	if (err)
+		return err;
+
+	mlxsw_reg_mgpir_unpack(mgpir_pl, NULL, NULL, NULL,
+			       &mlxsw_m->max_ports);
+	if (!mlxsw_m->max_ports)
+		return 0;
+
+	mlxsw_m->ports = kcalloc(mlxsw_m->max_ports, sizeof(*mlxsw_m->ports),
 				 GFP_KERNEL);
 	if (!mlxsw_m->ports)
 		return -ENOMEM;
 
-	mlxsw_m->module_to_port = kmalloc_array(max_ports, sizeof(int),
+	mlxsw_m->module_to_port = kmalloc_array(mlxsw_m->max_ports, sizeof(int),
 						GFP_KERNEL);
 	if (!mlxsw_m->module_to_port) {
 		err = -ENOMEM;
 		goto err_module_to_port_alloc;
 	}
 
-	/* Invalidate the entries of module to local port mapping array */
-	for (i = 0; i < max_ports; i++)
-		mlxsw_m->module_to_port[i] = -1;
-
-	/* Fill out module to local port mapping array */
-	for (i = 1; i < max_ports; i++) {
-		err = mlxsw_m_port_module_map(mlxsw_m, i, &last_module);
-		if (err)
-			goto err_module_to_port_map;
-	}
-
 	/* Create port objects for each valid entry */
-	for (i = 0; i < max_ports; i++) {
-		if (mlxsw_m->module_to_port[i] > 0) {
-			err = mlxsw_m_port_create(mlxsw_m,
-						  mlxsw_m->module_to_port[i],
-						  i);
-			if (err)
-				goto err_module_to_port_create;
-		}
+	for (i = 0; i < mlxsw_m->max_ports; i++) {
+		mlxsw_m->module_to_port[i] = i;
+		err = mlxsw_m_port_create(mlxsw_m, mlxsw_m->module_to_port[i],
+					  i);
+		if (err)
+			goto err_module_to_port_create;
 	}
 
 	return 0;
 
 err_module_to_port_create:
-	for (i--; i >= 0; i--) {
-		if (mlxsw_m->module_to_port[i] > 0)
-			mlxsw_m_port_remove(mlxsw_m,
-					    mlxsw_m->module_to_port[i]);
-	}
-	i = max_ports;
-err_module_to_port_map:
-	for (i--; i > 0; i--)
-		mlxsw_m_port_module_unmap(mlxsw_m, i);
+	for (i--; i >= 0; i--)
+		mlxsw_m_port_remove(mlxsw_m, mlxsw_m->module_to_port[i]);
 	kfree(mlxsw_m->module_to_port);
 err_module_to_port_alloc:
 	kfree(mlxsw_m->ports);
@@ -294,16 +238,10 @@ err_module_to_port_alloc:
 
 static void mlxsw_m_ports_remove(struct mlxsw_m *mlxsw_m)
 {
-	unsigned int max_ports = mlxsw_core_max_ports(mlxsw_m->core);
 	int i;
 
-	for (i = 0; i < max_ports; i++) {
-		if (mlxsw_m->module_to_port[i] > 0) {
-			mlxsw_m_port_remove(mlxsw_m,
-					    mlxsw_m->module_to_port[i]);
-			mlxsw_m_port_module_unmap(mlxsw_m, i);
-		}
-	}
+	for (i = 0; i < mlxsw_m->max_ports; i++)
+		mlxsw_m_port_remove(mlxsw_m, mlxsw_m->module_to_port[i]);
 
 	kfree(mlxsw_m->module_to_port);
 	kfree(mlxsw_m->ports);

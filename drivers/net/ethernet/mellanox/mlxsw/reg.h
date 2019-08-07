@@ -8593,6 +8593,11 @@ static inline void mlxsw_reg_mprs_pack(char *payload, u16 parsing_depth,
 
 MLXSW_REG_DEFINE(mgpir, MLXSW_REG_MGPIR_ID, MLXSW_REG_MGPIR_LEN);
 
+enum mlxsw_reg_mgpir_device_type {
+	MLXSW_REG_MGPIR_DEVICE_TYPE_NONE,
+	MLXSW_REG_MGPIR_DEVICE_TYPE_GEARBOX_DIE,
+};
+
 /* device_type
  * Access: RO
  */
@@ -8610,19 +8615,21 @@ MLXSW_ITEM32(reg, mgpir, devices_per_flash, 0x00, 16, 8);
  */
 MLXSW_ITEM32(reg, mgpir, num_of_devices, 0x00, 0, 8);
 
-enum mlxsw_reg_mgpir_device_type {
-	MLXSW_REG_MGPIR_TYPE_NONE,
-	MLXSW_REG_MGPIR_TYPE_GEARBOX_DIE,
-};
+/* num_of_modules
+ * Number of modules.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mgpir, num_of_modules, 0x04, 0, 8);
 
 static inline void mlxsw_reg_mgpir_pack(char *payload)
 {
 	MLXSW_REG_ZERO(mgpir, payload);
 }
 
-static inline void mlxsw_reg_mgpir_unpack(char *payload, u8 *num_of_devices,
-					  u8 *device_type,
-					  u8 *devices_per_flash)
+static inline void
+mlxsw_reg_mgpir_unpack(char *payload, u8 *num_of_devices,
+		       enum mlxsw_reg_mgpir_device_type *device_type,
+		       u8 *devices_per_flash, u8 *num_of_modules)
 {
 	if (num_of_devices)
 		*num_of_devices = mlxsw_reg_mgpir_num_of_devices_get(payload);
@@ -8631,6 +8638,8 @@ static inline void mlxsw_reg_mgpir_unpack(char *payload, u8 *num_of_devices,
 	if (devices_per_flash)
 		*devices_per_flash =
 				mlxsw_reg_mgpir_devices_per_flash_get(payload);
+	if (num_of_modules)
+		*num_of_modules = mlxsw_reg_mgpir_num_of_modules_get(payload);
 }
 
 /* TNGCR - Tunneling NVE General Configuration Register
