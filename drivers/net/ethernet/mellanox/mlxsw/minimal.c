@@ -17,6 +17,9 @@
 
 static const char mlxsw_m_driver_name[] = "mlxsw_minimal";
 
+#define MLXSW_M_FWREV_MINOR	2000
+#define MLXSW_M_FWREV_SUBMINOR	1886
+
 struct mlxsw_m_port;
 
 struct mlxsw_m {
@@ -115,6 +118,24 @@ static void mlxsw_m_port_switchdev_init(struct mlxsw_m_port *mlxsw_m_port)
 
 static void mlxsw_m_port_switchdev_fini(struct mlxsw_m_port *mlxsw_m_port)
 {
+}
+
+static int mlxsw_m_fw_rev_validate(struct mlxsw_m *mlxsw_m)
+{
+	const struct mlxsw_fw_rev *rev = &mlxsw_m->bus_info->fw_rev;
+
+	dev_info(mlxsw_m->bus_info->dev, "The firmware version %d.%d.%d\n",
+		 rev->major, rev->minor, rev->subminor);
+	/* Validate driver & FW are compatible */
+	if (rev->minor >= MLXSW_M_FWREV_MINOR &&
+	    rev->subminor >= MLXSW_M_FWREV_SUBMINOR)
+		return 0;
+
+	dev_info(mlxsw_m->bus_info->dev, "The firmware version %d.%d.%d is incompatible with the driver (required >= %d.%d.%d)\n",
+		 rev->major, rev->minor, rev->subminor, rev->major,
+		 MLXSW_M_FWREV_MINOR, MLXSW_M_FWREV_SUBMINOR);
+
+	return -EINVAL;
 }
 
 static int
@@ -255,6 +276,10 @@ static int mlxsw_m_init(struct mlxsw_core *mlxsw_core,
 
 	mlxsw_m->core = mlxsw_core;
 	mlxsw_m->bus_info = mlxsw_bus_info;
+
+	err = mlxsw_m_fw_rev_validate(mlxsw_m);
+	if (err)
+		return err;
 
 	err = mlxsw_m_ports_create(mlxsw_m);
 	if (err) {
