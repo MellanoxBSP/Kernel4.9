@@ -44,12 +44,13 @@ static int mlxsw_env_validate_cable_ident(struct mlxsw_core *core, int id,
 
 static int
 mlxsw_env_query_module_eeprom(struct mlxsw_core *mlxsw_core, int module,
-			      u16 offset, u16 size, void *data,
+			      u16 offset, u16 size, bool qsfp, void *data,
 			      unsigned int *p_read_size)
 {
 	char eeprom_tmp[MLXSW_REG_MCIA_EEPROM_SIZE];
 	char mcia_pl[MLXSW_REG_MCIA_LEN];
 	u16 i2c_addr;
+	u8 page = 0;
 	int status;
 	int err;
 
@@ -62,11 +63,19 @@ mlxsw_env_query_module_eeprom(struct mlxsw_core *mlxsw_core, int module,
 
 	i2c_addr = MLXSW_REG_MCIA_I2C_ADDR_LOW;
 	if (offset >= MLXSW_REG_MCIA_EEPROM_PAGE_LENGTH) {
-		i2c_addr = MLXSW_REG_MCIA_I2C_ADDR_HIGH;
-		offset -= MLXSW_REG_MCIA_EEPROM_PAGE_LENGTH;
+		if (qsfp) {
+			page = MLXSW_REG_MCIA_PAGE_GET(offset);
+			offset -= MLXSW_REG_MCIA_EEPROM_UP_PAGE_LENGTH * page;
+			if (offset + size > MLXSW_REG_MCIA_EEPROM_PAGE_LENGTH)
+				size = MLXSW_REG_MCIA_EEPROM_PAGE_LENGTH -
+				       offset;
+		} else {
+			i2c_addr = MLXSW_REG_MCIA_I2C_ADDR_HIGH;
+			offset -= MLXSW_REG_MCIA_EEPROM_PAGE_LENGTH;
+		}
 	}
 
-	mlxsw_reg_mcia_pack(mcia_pl, module, 0, 0, offset, size, i2c_addr);
+	mlxsw_reg_mcia_pack(mcia_pl, module, 0, page, offset, size, i2c_addr);
 
 	err = mlxsw_reg_query(mlxsw_core, MLXSW_REG(mcia), mcia_pl);
 	if (err)
@@ -152,10 +161,11 @@ int mlxsw_env_get_module_info(struct mlxsw_core *mlxsw_core, int module,
 	u16 offset = MLXSW_REG_MCIA_EEPROM_MODULE_INFO_SIZE;
 	u8 module_rev_id, module_id, diag_mon;
 	unsigned int read_size;
+	bool unused = false;
 	int err;
 
 	err = mlxsw_env_query_module_eeprom(mlxsw_core, module, 0, offset,
-					    module_info, &read_size);
+					    unused, module_info, &read_size);
 	if (err)
 		return err;
 
@@ -168,7 +178,7 @@ int mlxsw_env_get_module_info(struct mlxsw_core *mlxsw_core, int module,
 	switch (module_id) {
 	case MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_QSFP:
 		modinfo->type       = ETH_MODULE_SFF_8436;
-		modinfo->eeprom_len = ETH_MODULE_SFF_8436_LEN;
+		modinfo->eeprom_len = ETH_MODULE_SFF_8436_MAX_LEN;
 		break;
 	case MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_QSFP_PLUS: /* fall-through */
 	case MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_QSFP28:
@@ -176,17 +186,17 @@ int mlxsw_env_get_module_info(struct mlxsw_core *mlxsw_core, int module,
 		    module_rev_id >=
 		    MLXSW_REG_MCIA_EEPROM_MODULE_INFO_REV_ID_8636) {
 			modinfo->type       = ETH_MODULE_SFF_8636;
-			modinfo->eeprom_len = ETH_MODULE_SFF_8636_LEN;
+			modinfo->eeprom_len = ETH_MODULE_SFF_8636_MAX_LEN;
 		} else {
 			modinfo->type       = ETH_MODULE_SFF_8436;
-			modinfo->eeprom_len = ETH_MODULE_SFF_8436_LEN;
+			modinfo->eeprom_len = ETH_MODULE_SFF_8436_MAX_LEN;
 		}
 		break;
 	case MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_SFP:
 		/* Verify if transceiver provides diagnostic monitoring page */
 		err = mlxsw_env_query_module_eeprom(mlxsw_core, module,
-						    SFP_DIAGMON, 1, &diag_mon,
-						    &read_size);
+						    SFP_DIAGMON, 1, unused,
+						    &diag_mon, &read_size);
 		if (err)
 			return err;
 
@@ -213,6 +223,7 @@ int mlxsw_env_get_module_eeprom(struct net_device *netdev,
 {
 	int offset = ee->offset;
 	unsigned int read_size;
+	bool qsfp;
 	int i = 0;
 	int err;
 
@@ -221,10 +232,15 @@ int mlxsw_env_get_module_eeprom(struct net_device *netdev,
 
 	memset(data, 0, ee->len);
 
+	/* Validate module identifier type. */
+	err = mlxsw_env_validate_cable_ident(mlxsw_core, module, &qsfp);
+	if (err)
+		return err;
+
 	while (i < ee->len) {
 		err = mlxsw_env_query_module_eeprom(mlxsw_core, module, offset,
-						    ee->len - i, data + i,
-						    &read_size);
+						    ee->len - i, qsfp,
+						    data + i, &read_size);
 		if (err) {
 			netdev_err(netdev, "Eeprom query failed\n");
 			return err;
