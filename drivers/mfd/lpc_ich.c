@@ -216,6 +216,9 @@ enum lpc_chipsets {
 	LPC_BRASWELL,	/* Braswell SoC */
 	LPC_LEWISBURG,	/* Lewisburg */
 	LPC_9S,		/* 9 Series */
+	LPC_APL,	/* Apollo Lake SoC */
+	LPC_GLK,	/* Gemini Lake SoC */
+	LPC_COUGARMOUNTAIN,/* Cougar Mountain SoC*/
 };
 
 static struct lpc_ich_info lpc_chipset_info[] = {
@@ -493,6 +496,7 @@ static struct lpc_ich_info lpc_chipset_info[] = {
 	[LPC_LPT] = {
 		.name = "Lynx Point",
 		.iTCO_version = 2,
+		.gpio_version = ICH_V5_GPIO,
 	},
 	[LPC_LPT_LP] = {
 		.name = "Lynx Point_LP",
@@ -530,6 +534,18 @@ static struct lpc_ich_info lpc_chipset_info[] = {
 	[LPC_9S] = {
 		.name = "9 Series",
 		.iTCO_version = 2,
+		.gpio_version = ICH_V5_GPIO,
+	},
+	[LPC_APL] = {
+		.name = "Apollo Lake SoC",
+		.iTCO_version = 5,
+	},
+	[LPC_GLK] = {
+		.name = "Gemini Lake SoC",
+	},
+	[LPC_COUGARMOUNTAIN] = {
+		.name = "Cougar Mountain SoC",
+		.iTCO_version = 3,
 	},
 };
 
@@ -659,6 +675,8 @@ static const struct pci_device_id lpc_ich_ids[] = {
 	{ PCI_VDEVICE(INTEL, 0x2917), LPC_ICH9ME},
 	{ PCI_VDEVICE(INTEL, 0x2918), LPC_ICH9},
 	{ PCI_VDEVICE(INTEL, 0x2919), LPC_ICH9M},
+	{ PCI_VDEVICE(INTEL, 0x3197), LPC_GLK},
+	{ PCI_VDEVICE(INTEL, 0x2b9c), LPC_COUGARMOUNTAIN},
 	{ PCI_VDEVICE(INTEL, 0x3a14), LPC_ICH10DO},
 	{ PCI_VDEVICE(INTEL, 0x3a16), LPC_ICH10R},
 	{ PCI_VDEVICE(INTEL, 0x3a18), LPC_ICH10},
@@ -679,6 +697,7 @@ static const struct pci_device_id lpc_ich_ids[] = {
 	{ PCI_VDEVICE(INTEL, 0x3b14), LPC_3420},
 	{ PCI_VDEVICE(INTEL, 0x3b16), LPC_3450},
 	{ PCI_VDEVICE(INTEL, 0x5031), LPC_EP80579},
+	{ PCI_VDEVICE(INTEL, 0x5ae8), LPC_APL},
 	{ PCI_VDEVICE(INTEL, 0x8c40), LPC_LPT},
 	{ PCI_VDEVICE(INTEL, 0x8c41), LPC_LPT},
 	{ PCI_VDEVICE(INTEL, 0x8c42), LPC_LPT},
