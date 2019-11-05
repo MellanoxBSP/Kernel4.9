@@ -116,6 +116,7 @@ struct mlxsw_thermal {
 	u8 tz_gearbox_num;
 	unsigned int tz_highest_score;
 	struct thermal_zone_device *tz_highest_dev;
+	bool initializing; /* Driver is in initialization stage */
 };
 
 static inline u8 mlxsw_state_to_duty(int state)
@@ -286,6 +287,12 @@ static int mlxsw_thermal_get_temp(struct thermal_zone_device *tzdev,
 	char mtmp_pl[MLXSW_REG_MTMP_LEN];
 	int temp;
 	int err;
+
+	/* Do not read temperature in initialization stage. */
+	if (thermal->initializing) {
+		*p_temp = 0;
+		return 0;
+	}
 
 	mlxsw_reg_mtmp_pack(mtmp_pl, 0, false, false);
 
@@ -458,6 +465,12 @@ static int mlxsw_thermal_module_temp_get(struct thermal_zone_device *tzdev,
 	int temp;
 	int err;
 
+	/* Do not read temperature in initialization stage. */
+	if (thermal->initializing) {
+		*p_temp = 0;
+		return 0;
+	}
+
 	/* Read module temperature. */
 	mlxsw_reg_mtmp_pack(mtmp_pl, MLXSW_REG_MTMP_MODULE_INDEX_MIN +
 			    tz->module, false, false);
@@ -564,6 +577,12 @@ static int mlxsw_thermal_gearbox_temp_get(struct thermal_zone_device *tzdev,
 	u16 index;
 	int temp;
 	int err;
+
+	/* Do not read temperature in initialization stage. */
+	if (thermal->initializing) {
+		*p_temp = 0;
+		return 0;
+	}
 
 	index = MLXSW_REG_MTMP_GBOX_INDEX_MIN + tz->module;
 	mlxsw_reg_mtmp_pack(mtmp_pl, index, false, false);
@@ -919,6 +938,7 @@ int mlxsw_thermal_init(struct mlxsw_core *core,
 	thermal->core = core;
 	thermal->bus_info = bus_info;
 	memcpy(thermal->trips, default_thermal_trips, sizeof(thermal->trips));
+	thermal->initializing = true;
 
 	err = mlxsw_reg_query(thermal->core, MLXSW_REG(mfcr), mfcr_pl);
 	if (err) {
@@ -994,6 +1014,7 @@ int mlxsw_thermal_init(struct mlxsw_core *core,
 		goto err_unreg_modules_tzdev;
 
 	thermal->mode = THERMAL_DEVICE_DISABLED;
+	thermal->initializing = false;
 	*p_thermal = thermal;
 	return 0;
 
