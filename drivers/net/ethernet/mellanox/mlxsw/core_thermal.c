@@ -411,6 +411,10 @@ static int mlxsw_thermal_trend_get(struct thermal_zone_device *tzdev,
 	return 0;
 }
 
+struct thermal_zone_params mlxsw_thermal_params = {
+	.no_hwmon = true,
+};
+
 static struct thermal_zone_device_ops mlxsw_thermal_ops = {
 	.bind = mlxsw_thermal_bind,
 	.unbind = mlxsw_thermal_unbind,
@@ -774,11 +778,11 @@ mlxsw_thermal_module_tz_init(struct mlxsw_thermal_module *module_tz)
 	snprintf(tz_name, sizeof(tz_name), "mlxsw-module%d",
 		 module_tz->module + 1);
 	module_tz->tzdev = thermal_zone_device_register(tz_name,
-							MLXSW_THERMAL_NUM_TRIPS,
-							MLXSW_THERMAL_TRIP_MASK,
-							module_tz,
-							&mlxsw_thermal_module_ops,
-							NULL, 0, 0);
+						MLXSW_THERMAL_NUM_TRIPS,
+						MLXSW_THERMAL_TRIP_MASK,
+						module_tz,
+						&mlxsw_thermal_module_ops,
+						&mlxsw_thermal_params, 0, 0);
 	if (IS_ERR(module_tz->tzdev)) {
 		err = PTR_ERR(module_tz->tzdev);
 		return err;
@@ -898,7 +902,7 @@ mlxsw_thermal_gearbox_tz_init(struct mlxsw_thermal_module *gearbox_tz)
 						MLXSW_THERMAL_TRIP_MASK,
 						gearbox_tz,
 						&mlxsw_thermal_gearbox_ops,
-						NULL, 0, 0);
+						&mlxsw_thermal_params, 0, 0);
 	if (IS_ERR(gearbox_tz->tzdev))
 		return PTR_ERR(gearbox_tz->tzdev);
 
@@ -1052,7 +1056,7 @@ int mlxsw_thermal_init(struct mlxsw_core *core,
 						      MLXSW_THERMAL_TRIP_MASK,
 						      thermal,
 						      &mlxsw_thermal_ops,
-						      NULL, 0,
+						      &mlxsw_thermal_params, 0,
 						      thermal->polling_delay);
 	if (IS_ERR(thermal->tzdev)) {
 		err = PTR_ERR(thermal->tzdev);
