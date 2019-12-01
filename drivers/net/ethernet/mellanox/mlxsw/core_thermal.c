@@ -813,8 +813,8 @@ mlxsw_thermal_module_init(struct device *dev, struct mlxsw_core *core,
 	       sizeof(thermal->trips));
 	/* Initialize all trip point. */
 	mlxsw_thermal_module_trips_reset(module_tz);
-	/* Update trip point according to the module data. */
-	return mlxsw_thermal_module_trips_update(dev, core, module_tz);
+
+	return 0;
 }
 
 static void mlxsw_thermal_module_fini(struct mlxsw_thermal_module *module_tz)
