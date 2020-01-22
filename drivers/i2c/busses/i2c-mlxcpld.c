@@ -51,7 +51,7 @@
 #define MLXCPLD_I2C_MAX_ADDR_LEN	4
 #define MLXCPLD_I2C_RETR_NUM		2
 #define MLXCPLD_I2C_XFER_TO		500000 /* usec */
-#define MLXCPLD_I2C_POLL_TIME		200   /* usec */
+#define MLXCPLD_I2C_POLL_TIME		600   /* usec */
 
 /* LPC I2C registers */
 #define MLXCPLD_LPCI2C_CPBLTY_REG	0x0
@@ -524,6 +524,8 @@ static int mlxcpld_i2c_probe(struct platform_device *pdev)
 	err = i2c_add_numbered_adapter(&priv->adap);
 	if (err)
 		mutex_destroy(&priv->lock);
+
+	dev_info(priv->dev, "Set with %d polling\n", MLXCPLD_I2C_POLL_TIME);
 
 	return err;
 }
