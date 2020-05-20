@@ -415,13 +415,6 @@ static int mlxsw_thermal_trend_get(struct thermal_zone_device *tzdev,
 	return 0;
 }
 
-static int
-mlxsw_thermal_set_emulation(struct thermal_zone_device *tzdev, int temp)
-{
-	tzdev->emul_temperature = temp;
-	return 0;
-}
-
 struct thermal_zone_params mlxsw_thermal_params = {
 	.no_hwmon = true,
 };
@@ -438,7 +431,6 @@ static struct thermal_zone_device_ops mlxsw_thermal_ops = {
 	.get_trip_hyst	= mlxsw_thermal_get_trip_hyst,
 	.set_trip_hyst	= mlxsw_thermal_set_trip_hyst,
 	.get_trend	= mlxsw_thermal_trend_get,
-	.set_emul_temp	= mlxsw_thermal_set_emulation,
 };
 
 static int mlxsw_thermal_module_bind(struct thermal_zone_device *tzdev,
@@ -634,7 +626,6 @@ static struct thermal_zone_device_ops mlxsw_thermal_module_ops = {
 	.get_trip_hyst	= mlxsw_thermal_module_trip_hyst_get,
 	.set_trip_hyst	= mlxsw_thermal_module_trip_hyst_set,
 	.get_trend	= mlxsw_thermal_trend_get,
-	.set_emul_temp	= mlxsw_thermal_set_emulation,
 };
 
 static int mlxsw_thermal_gearbox_temp_get(struct thermal_zone_device *tzdev,
@@ -680,7 +671,6 @@ static struct thermal_zone_device_ops mlxsw_thermal_gearbox_ops = {
 	.get_trip_hyst	= mlxsw_thermal_module_trip_hyst_get,
 	.set_trip_hyst	= mlxsw_thermal_module_trip_hyst_set,
 	.get_trend	= mlxsw_thermal_trend_get,
-	.set_emul_temp	= mlxsw_thermal_set_emulation,
 };
 
 static int mlxsw_thermal_get_max_state(struct thermal_cooling_device *cdev,
